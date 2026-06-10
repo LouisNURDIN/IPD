@@ -607,5 +607,42 @@ ggsave(
 
 #H5 ----
 
+#Balance check ----
+library(gtsummary)
+tbl_summary(
+  data = df,
+  by = groupe,
+  include = c(
+    gender, age, nationality,
+    marital_status, socioprofessional_group,
+    diplome, discipline,
+  ),
+  missing = "no"
+) %>%
+  add_overall() %>%
+  add_p(
+    test = everything() ~ "chisq.test",
+    test.args = everything() ~ list(simulate.p.value = TRUE)
+  ) %>%
+  bold_p()
 
 
+tbl_summary(
+  data = df,
+  by = groupe,
+  include = c(
+    gender, age, nationality,
+    marital_status, socioprofessional_group,
+    diplome, discipline,
+  ),
+  type = everything() ~ "continuous",
+  statistic = everything() ~ "{mean} ({sd})",
+  missing = "no"
+) %>%
+  add_overall() %>%
+  add_p(
+    test = everything() ~ "kruskal.test"
+  ) %>%
+  bold_p()
+
+unique(df$groupe)
