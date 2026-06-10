@@ -1,5 +1,3 @@
-
-
 library(tidyverse)
 library(readxl)
 library(dplyr)
@@ -540,7 +538,7 @@ df_long$Player_type[df_long$Outgroupconditional=="Outgroup conditional cooperato
 
 describe(df_long$Player_type)
 
-df_long  %>% 
+profil_type_plot <- df_long  %>% 
   ggplot(aes(group = Player_type, x=" "))+
   geom_bar(aes( fill = Player_type, x=" "),position = "fill")+
   geom_text(stat = "prop",color="white",position = position_fill(.5))+
@@ -551,7 +549,45 @@ df_long  %>%
   theme(
     text = element_text(size = 14)
   )
+ggsave(
+  filename = "results/figures/player profil by game.png",
+  plot = profil_type_plot,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
 
+
+#test diagramme alluvial
+install.packages("ggalluvial")
+library(ggalluvial)
+
+df_alluvial <- primary_data %>%
+  count(Player_type_PD, Player_type_IPD)
+
+alv_plot <- ggplot(
+  df_alluvial,
+  aes(
+    axis1 = Player_type_PD,
+    axis2 = Player_type_IPD,
+    y = n
+  )
+) +
+  geom_alluvium(aes(fill = Player_type_PD)) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(
+    limits = c("PD", "IPD"),
+    expand = c(.1, .1)
+  ) +
+  theme_minimal()
+ggsave(
+  filename = "results/figures/graphique alluvial pd-ipd.png",
+  plot = alv_plot,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
 
 #Vérification des hypothèses ----
 
