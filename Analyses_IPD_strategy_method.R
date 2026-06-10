@@ -22,7 +22,7 @@ library(tidyverse)
 
 # Lire les données simulées
 #df <- read_excel("Simulated data/data_IPD_simulated.xlsx")
-df <- read.csv("ipd/IPD/data/data_all.csv")
+df <- read.csv("data/data_all.csv")
 
 df <- unique(df)
 df <- df[!is.na(df$pd_in3_out3),]
