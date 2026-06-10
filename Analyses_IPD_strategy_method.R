@@ -217,7 +217,7 @@ library(statpsych)
 alpha_primary <- 0.05 / 3
 delta <- 0.115 
 
-# --- Préparation des données
+# --- Préparation des données ----
 primary_data <- player_types %>%
   mutate(
     UNC = Player_type == "Unconditional\nnon cooperator",
@@ -286,7 +286,17 @@ test_H2 <- tibble(
 test_H2
 
 
-
+results_H2 <- tibble(
+  hypothesis = "H2: equivalence iCC IPD vs PD",
+  p_PD = mean(primary_data$iCC_PD, na.rm = TRUE),
+  p_IPD = mean(primary_data$iCC_IPD, na.rm = TRUE),
+  mean_diff = mean_diff,
+  delta = delta,
+  p_lower = p_lower,
+  p_upper = p_upper,
+  p_TOST = p_TOST,
+  reject_null_equivalence = p_TOST < alpha_primary
+)
 
 tab_H3 <- table(
   PD = primary_data$UNC_PD,
@@ -592,14 +602,145 @@ ggsave(
 #Vérification des hypothèses ----
 
 #H1 ----
+#La proportion de Outgroup conditional cooperator est plus importante en cas de conflit (IPD > PD)
+#McNemar’schi-square test (one-sided): the null hypothesis is oCCIPD ≤ oCCPD.
+table(primary_data$Player_type_IPD)  #53 oCC dans IPD
+table(primary_data$Player_type_PD)   #26 oCC dans PD
+
+tab_H1 <- table(
+  factor(primary_data$oCC_PD, levels = c(FALSE, TRUE)),
+  factor(primary_data$oCC_IPD, levels = c(FALSE, TRUE))
+)
+
+b_H1 <- tab_H1["FALSE", "TRUE"]
+c_H1 <- tab_H1["TRUE", "FALSE"]
+
+test_H1 <- binom.test(
+  x = b_H1,
+  n = b_H1 + c_H1,
+  p = 0.5,
+  alternative = "greater"
+)
+
+test_H1
+
+test_H1$p.value
+test_H1$statistic
+test_H1$conf.int
+
+result_H1 <- data.frame(
+  Transition = c("PD → IPD (b)", "IPD → PD (c)", "p-value"),
+  Value = c(b_H1, c_H1, signif(test_H1$p.value, 7))
+)
+
 
 #H2 ----
+#La proportion de ingroup conditional cooperators est la même que ce soit en présence d'un conflit ou non
+table(primary_data$Player_type_IPD)  #60 iCC dans IPD
+table(primary_data$Player_type_PD)  #98 dans PD => plus de iCC en absence de conflit 
+
+primary_data <- primary_data %>%
+  mutate(
+    iCC_PD  = Player_type_PD  == "Only Ingroup\nconditional cooperator",
+    iCC_IPD = Player_type_IPD == "Only Ingroup\nconditional cooperator"
+  )
+p_PD  <- mean(primary_data$iCC_PD, na.rm = TRUE)
+p_IPD <- mean(primary_data$iCC_IPD, na.rm = TRUE)
+
+d <- p_IPD - p_PD
+
+diff_iCC <- as.numeric(primary_data$iCC_IPD) -
+  as.numeric(primary_data$iCC_PD)
+mean_diff <- mean(diff_iCC, na.rm = TRUE)
+sd_diff   <- sd(diff_iCC, na.rm = TRUE)
+n         <- sum(!is.na(diff_iCC))
+
+se_diff <- sd_diff / sqrt(n)
+delta <- 0.115
+z_lower <- (mean_diff + delta) / se_diff
+p_lower <- 1 - pnorm(z_lower)
+
+z_upper <- (mean_diff - delta) / se_diff
+p_upper <- pnorm(z_upper)
+
+p_TOST <- max(p_lower, p_upper)
+result_H2 <- tibble(
+  hypothesis = "H2: equivalence iCC IPD vs PD",
+  mean_diff = mean_diff,
+  delta = delta,
+  p_lower = p_lower,
+  p_upper = p_upper,
+  p_TOST = p_TOST,
+  reject_null_equivalence = p_TOST < alpha_primary
+)
+
+result_H2
 
 #H3 ----
+#La proportion d'inconditionnels non coopérateurs (contribuent jamais) est plus importante en présence de conflit
+table(primary_data$Player_type_IPD)  #57 UNC dans IPD
+table(primary_data$Player_type_PD)   #47 UNC dans PD
+
+
+tab_H3 <- table(
+  factor(primary_data$UNC_PD, levels = c(FALSE, TRUE)),
+  factor(primary_data$UNC_IPD, levels = c(FALSE, TRUE))
+)
+
+b_H3 <- tab_H3["FALSE", "TRUE"]
+c_H3 <- tab_H3["TRUE", "FALSE"]
+
+test_H3 <- binom.test(
+  x = b_H3,
+  n = b_H3 + c_H3,
+  p = 0.5,
+  alternative = "greater"
+)
+
+test_H3
+
+test_H3$p.value
+test_H3$statistic
+test_H3$conf.int
+
+result_H3 <- data.frame(
+  Transition = c("PD → IPD (b)", "IPD → PD (c)", "p-value"),
+  Value = c(b_H3, c_H3, signif(test_H3$p.value, 8))
+)
 
 #H4a ----
+#Les ICC ont un iSVO plus important que les UNC dans IPD
+player_types_avec_svo <- player_types %>%
+  left_join(df %>%
+            select(c(participant,svo_ingroup_player, svo_outgroup_player)
+                   ),
+            by = "participant")
+mean_svo_icc <- mean(
+  player_types_avec_svo$svo_ingroup_player[
+    player_types_avec_svo$Player_type == "Only Ingroup\nconditional cooperator"
+  ],
+  na.rm = TRUE
+)   #moyenne 9.037975
+
+mean_svo_unc <- mean(
+  player_types_avec_svo$svo_ingroup_player[
+    player_types_avec_svo$Player_type == "Unconditional\nnon cooperator"
+  ],
+  na.rm = TRUE
+)  #moyenne = 8.153846
+unique(player_types_avec_svo$Player_type)
+
+moyenneH4a <- tibble(
+  hypothesis = "H4a : Icc more altruistic towards ingroup than Unc in IPD",
+  mean_ICC = mean_svo_icc,
+  mean_UNC = mean_svo_unc,
+)
+
+
+
 
 #H4b ----
+
 
 #H4c ----
 
@@ -611,38 +752,21 @@ ggsave(
 library(gtsummary)
 tbl_summary(
   data = df,
-  by = groupe,
-  include = c(
-    gender, age, nationality,
-    marital_status, socioprofessional_group,
-    diplome, discipline,
-  ),
+  by = part_1_selected_task_name,
+  include = c( part_2_selected_task_name, age, gender, diplome, discipline),
   missing = "no"
 ) %>%
   add_overall() %>%
   add_p(
-    test = everything() ~ "chisq.test",
-    test.args = everything() ~ list(simulate.p.value = TRUE)
+    test = list(
+      c(age, part_2_selected_task_name) ~ "oneway.test",
+      c(gender, diplome, discipline) ~ "chisq.test"
+    ),
+    test.args = list(
+      c(age, part_2_selected_task_name) ~ list(var.equal = TRUE),
+      c(gender, diplome, discipline) ~ list(simulate.p.value = TRUE)
+    )
   ) %>%
   bold_p()
 
 
-tbl_summary(
-  data = df,
-  by = groupe,
-  include = c(
-    gender, age, nationality,
-    marital_status, socioprofessional_group,
-    diplome, discipline,
-  ),
-  type = everything() ~ "continuous",
-  statistic = everything() ~ "{mean} ({sd})",
-  missing = "no"
-) %>%
-  add_overall() %>%
-  add_p(
-    test = everything() ~ "kruskal.test"
-  ) %>%
-  bold_p()
-
-unique(df$groupe)
