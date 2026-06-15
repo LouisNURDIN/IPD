@@ -710,44 +710,182 @@ result_H3 <- data.frame(
 
 #H4a ----
 #Les ICC ont un iSVO plus important que les UNC dans IPD
-player_types_avec_svo <- player_types %>%
-  left_join(df %>%
-            select(c(participant,svo_ingroup_player, svo_outgroup_player)
-                   ),
-            by = "participant")
-mean_svo_icc <- mean(
-  player_types_avec_svo$svo_ingroup_player[
-    player_types_avec_svo$Player_type == "Only Ingroup\nconditional cooperator"
-  ],
-  na.rm = TRUE
-)   #moyenne 9.037975
-
-mean_svo_unc <- mean(
-  player_types_avec_svo$svo_ingroup_player[
-    player_types_avec_svo$Player_type == "Unconditional\nnon cooperator"
-  ],
-  na.rm = TRUE
-)  #moyenne = 8.153846
-unique(player_types_avec_svo$Player_type)
-
-moyenneH4a <- tibble(
-  hypothesis = "H4a : Icc more altruistic towards ingroup than Unc in IPD",
-  mean_ICC = mean_svo_icc,
-  mean_UNC = mean_svo_unc,
+##Calcul de gSVO par joueur
+df <- df %>%
+  mutate(
+    A_ingroup = rowMeans(
+      select(., starts_with("gsvo_in_")),
+      na.rm = TRUE
+    ),
+    A_outgroup = rowMeans(
+      select(., starts_with("gsvo_out_")),
+      na.rm = TRUE
+    ),
+    
+    gSVO = atan2(
+      A_outgroup - 50,
+      A_ingroup - 50
+    ) * 180 / pi
 )
+  
+
+max(df$gSVO)
+min(df$gSVO)
+mean(df$gSVO)
+names(df %>% select(starts_with("gsvo_out_")))
+
+##Calcul du isvo par joueur 
+df <- df %>%
+  mutate(
+    B_other = rowMeans(
+      select(., starts_with("isvo_other_")),
+      na.rm = TRUE
+    ),
+    B_self = rowMeans(
+      select(., starts_with("isvo_self_")),
+      na.rm = TRUE
+    ),
+    
+    iSVO = atan2(
+      B_other - 50,
+      B_self - 50
+    ) * 180 / pi
+  )
 
 
+max(df$iSVO)
+min(df$iSVO)
+mean(df$iSVO)
+names(df %>% select(starts_with("isvo_self_")))
+
+#Corrélation entre gSVO et iSVO   
+cor(df$gSVO, df$iSVO, use = "complete.obs")
+
+#Join score iSVO et gSVO dans mon df avec le profil de mes joueurs
+primary_data <- primary_data %>%
+  left_join(
+    df %>% select(participant, gSVO, iSVO),
+    by = "participant")
+
+#Vérif des hypothèses ----
+unique(primary_data$Player_type_IPD)
+primary_data$Player_type_IPD <- factor(primary_data$Player_type_IPD)
+primary_data$Player_type_IPD <- relevel(primary_data$Player_type_IPD, 
+                                        ref = "Unconditional\nnon cooperator")
+levels(primary_data$Player_type_IPD)
+library(nnet)
+model_H4a <- multinom(
+  Player_type_IPD ~ iSVO + gSVO,
+  data = primary_data
+)
+summary(model_H4a)
+
+#Tab_final => tableau qui résume H4a et H4b
+tab_final <- broom::tidy(model_H4a) %>%
+  mutate(
+    stars = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01  ~ "**",
+      p.value < 0.05  ~ "*",
+      TRUE ~ ""
+    ),
+    
+    estimate = paste0(round(estimate, 3), stars)
+  ) %>%
+  select(y.level, term, estimate) %>%
+  pivot_wider(
+    names_from = term,
+    values_from = estimate)
+
+knitr::kable(tab_final)
+tab_final <- tab_final %>%
+  rename("intercept, réf = UNC" = "(Intercept)") 
+names(tab_final)
 
 
-#H4b ----
+tab_raw <- broom::tidy(model_H4a)
+subset(tab_raw, term == "iSVO")
+subset(tab_raw, term == "gSVO")
+z <- estimate / std.error
+p_one_tailed <- 1 - pnorm(z)
+p_one_tailed <- pnorm(z)
 
 
 #H4c ----
+data_logit <- primary_data %>%
+  filter(Player_type_IPD %in% c("Only Ingroup\nconditional cooperator", 
+                                "Only Outgroup\nconditional cooperator")) %>%
+  mutate(
+    OiCC_binary = ifelse(Player_type_IPD == "Only Ingroup\nconditional cooperator", 1, 0))
 
-#H4d ----
+model_OiCC_vs_OoCC <- glm(
+  OiCC_binary ~ iSVO + gSVO,
+  data = data_logit,
+  family = binomial(link = "logit"))
+summary(model_OiCC_vs_OoCC)
+
+
+tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
+  mutate(
+    stars = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01  ~ "**",
+      p.value < 0.05  ~ "*",
+      TRUE ~ ""
+    ),
+    estimate = paste0(round(estimate, 3), stars)
+  ) %>%
+  select(term, estimate)
+  knitr::kable(tab)
+  tab <- tab %>%
+    mutate(
+      term = case_when(
+        term == "(Intercept)" ~ "Intercept, réf = OOCC",
+        TRUE ~ term
+      )
+    )
+  
+  modelsummary(
+    list("oiCC VS ooCC" = model_OiCC_vs_OoCC),
+    
+    coef_map = c(
+      "(Intercept)" = "Intercept, réf = ooCC",
+      "iSVO" = "iSVO",
+      "gSVO" = "gSVO"
+    ),
+    statistic = c("std.error", "p.value"),
+    stars = c('*' = .05, '**' = .01, '***' = .001),
+     fmt = 4,
+     title = "H4c and H4d table"
+  )
 
 #H5 ----
+#Calcul du nombre de jetons investis dans pd et ipd
+df <- df %>%
+    mutate(
+      pd_tokens = rowSums(select(., pd_in0_out0:pd_in4_out4), na.rm = TRUE))
 
+  
+  df <- df %>%
+    mutate(
+      ipd_tokens = rowSums(select(., ipd_in0_out0:ipd_in4_out4), na.rm = TRUE))
+
+  test <- t.test(df$ipd_tokens, df$pd_tokens,
+                 paired = TRUE,
+                 alternative = "greater")
+  
+  test
+  tab_test <- data.frame(
+    mean_ipd = mean(df$ipd_tokens, na.rm = TRUE),
+    mean_pd  = mean(df$pd_tokens, na.rm = TRUE),
+    diff     = mean(df$ipd_tokens, na.rm = TRUE) - mean(df$pd_tokens, na.rm = TRUE),
+    t_value  = test$statistic,
+    df       = test$parameter,
+    p_value  = test$p.value
+  )
+  
+  tab_test
+  
 #Balance check ----
 library(gtsummary)
 tbl_summary(
