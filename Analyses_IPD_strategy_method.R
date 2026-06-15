@@ -16,6 +16,7 @@ library(statpsych)
 library(tidyr)
 library(pwr)
 library(tidyverse)
+library(modelsummary)
 
 
 # Lire les données simulées
@@ -768,20 +769,34 @@ primary_data <- primary_data %>%
     by = "participant")
 
 #Vérif des hypothèses ----
+primary_data <- primary_data %>%
+  mutate(Player_type_IPD_recode = NA)
+primary_data <- primary_data %>%
+  mutate(
+    Player_type_IPD_recode = case_when(
+      Player_type_IPD == "Unconditional\nnon cooperator" ~ "0",
+      Player_type_IPD == "Unconditional\ncooperator" ~ "1",
+      Player_type_IPD == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_IPD == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_IPD == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_IPD == "Undefined" ~ "5",
+      TRUE ~ Player_type_IPD
+    )
+  )
 unique(primary_data$Player_type_IPD)
-primary_data$Player_type_IPD <- factor(primary_data$Player_type_IPD)
+primary_data$Player_type_IPD <- factor(primary_data$Player_type_IPD_recode)
 primary_data$Player_type_IPD <- relevel(primary_data$Player_type_IPD, 
-                                        ref = "Unconditional\nnon cooperator")
+                                        ref = "0")
 levels(primary_data$Player_type_IPD)
 library(nnet)
 model_H4a <- multinom(
-  Player_type_IPD ~ iSVO + gSVO,
+  Player_type_IPD_recode ~ iSVO + gSVO,
   data = primary_data
 )
 summary(model_H4a)
 
 #Tab_final => tableau qui résume H4a et H4b
-tab_final <- broom::tidy(model_H4a) %>%
+tab_final_H4Ab <- broom::tidy(model_H4a) %>%
   mutate(
     stars = case_when(
       p.value < 0.001 ~ "***",
@@ -794,13 +809,27 @@ tab_final <- broom::tidy(model_H4a) %>%
   ) %>%
   select(y.level, term, estimate) %>%
   pivot_wider(
-    names_from = term,
+    names_from = y.level,
     values_from = estimate)
 
-knitr::kable(tab_final)
-tab_final <- tab_final %>%
-  rename("intercept, réf = UNC" = "(Intercept)") 
-names(tab_final)
+knitr::kable(tab_final_H4Ab)
+
+tab_final_H4Ab <- tab_final_H4Ab %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "Intercept, réf = UNC",
+      TRUE ~ term
+    )
+  )
+tab_final_H4Ab <- tab_final_H4Ab %>%
+  rename(
+    UC   = `1`,
+    OiCC = `2`,
+    OoCC = `3`,
+    ioCC = `4`,
+    `n.c.` = `5`
+  )
+
 
 
 tab_raw <- broom::tidy(model_H4a)
@@ -845,6 +874,7 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
       )
     )
   
+  
   modelsummary(
     list("oiCC VS ooCC" = model_OiCC_vs_OoCC),
     
@@ -870,39 +900,126 @@ df <- df %>%
     mutate(
       ipd_tokens = rowSums(select(., ipd_in0_out0:ipd_in4_out4), na.rm = TRUE))
 
-  test <- t.test(df$ipd_tokens, df$pd_tokens,
+  test <- t.test(df$ipd_uncond, df$pd_uncond,
                  paired = TRUE,
                  alternative = "greater")
   
   test
   tab_test <- data.frame(
-    mean_ipd = mean(df$ipd_tokens, na.rm = TRUE),
-    mean_pd  = mean(df$pd_tokens, na.rm = TRUE),
-    diff     = mean(df$ipd_tokens, na.rm = TRUE) - mean(df$pd_tokens, na.rm = TRUE),
+    mean_ipd = mean(df$ipd_uncond, na.rm = TRUE),
+    mean_pd  = mean(df$pd_uncond, na.rm = TRUE),
+    diff     = mean(df$ipd_uncond, na.rm = TRUE) - mean(df$pd_uncond, na.rm = TRUE),
     t_value  = test$statistic,
     df       = test$parameter,
     p_value  = test$p.value
   )
   
   tab_test
+
+  
+  primary_data <- primary_data %>%
+    left_join(
+      df %>% select(participant, pd_uncond, ipd_uncond),
+      by = "participant")
+ 
+  #Graphique avec nuage de points et sans intervalle de confiance par groupe 
+  ggplot(
+    primary_data,
+    aes(
+      x = pd_uncond,
+      y = ipd_uncond,
+      color = Player_type_IPD
+    )
+  ) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(method = "lm", se = FALSE) +
+    geom_point(alpha = 0.7, size = 2) +
+    labs(
+      x = "Nombre de jetons investis en l'absence de conflit",
+      y = "Nombre de jetons investis en présence de conflit",
+      color = "Profil du joueur dans IPD"
+    ) +
+    theme_minimal()
+
+  #Graphique avec nuage de points et intervalle de confiance par groupe
+  ggplot(
+    primary_data,
+    aes(
+      x = pd_uncond,
+      y = ipd_uncond,
+      color = Player_type_IPD
+    )
+  ) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(method = "lm", se = TRUE) +
+    geom_point(alpha = 0.7, size = 2) +
+    labs(
+      x = "Nombre de jetons investis en l'absence de conflit",
+      y = "Nombre de jetons investis en présence de conflit",
+      color = "Profil du joueur dans IPD"
+    ) +
+    theme_minimal()
+  
+  
+  token_ipd_vs_pd <- lm(
+    ipd_uncond ~ pd_uncond,
+    data = primary_data)
+  summary(token_ipd_vs_pd)
+  
+  modelsummary(
+    list("Contribution inconditionnelle IPD VS PD" = token_ipd_vs_pd),
+    
+    coef_map = c(
+      "(Intercept)" = "Intercept",
+      "pd_uncond" = "Contribution inconditionnelle PD"
+    ),
+    statistic = c("std.error", "p.value"),
+    stars = c('*' = .05, '**' = .01, '***' = .001),
+    fmt = 4,
+    title = "Effet du nombre de jetons investis de manière inconditionnelle en l'absence de conflit sur le nombre de jetons investis de manière inconditionnelle en présence de conflit"
+  )
+  
+#Analyses exploratoires ----
+#H6 ----
+  
+  
   
 #Balance check ----
+  ##Balance check 1ere partie
 library(gtsummary)
 tbl_summary(
   data = df,
   by = part_1_selected_task_name,
-  include = c( part_2_selected_task_name, age, gender, diplome, discipline),
+  include = c(age, gender, diplome, discipline),
   missing = "no"
 ) %>%
   add_overall() %>%
   add_p(
     test = list(
-      c(age, part_2_selected_task_name) ~ "oneway.test",
+      c(age) ~ "oneway.test",
       c(gender, diplome, discipline) ~ "chisq.test"
     ),
     test.args = list(
-      c(age, part_2_selected_task_name) ~ list(var.equal = TRUE),
+      c(age) ~ list(var.equal = TRUE),
       c(gender, diplome, discipline) ~ list(simulate.p.value = TRUE)
+    )
+  ) %>%
+  bold_p()
+
+##Balance check 2eme partie
+tbl_summary(
+  data = df,
+  by = part_2_selected_task_name,
+  include = c(iSVO,gSVO),
+  missing = "no"
+) %>%
+  add_overall() %>%
+  add_p(
+    test = list(
+      c(iSVO,gSVO) ~ "oneway.test"
+    ),
+    test.args = list(
+      c(iSVO,gSVO) ~ list(var.equal = TRUE)
     )
   ) %>%
   bold_p()
