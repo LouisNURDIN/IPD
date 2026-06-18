@@ -1107,8 +1107,8 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
   primary_data <- primary_data %>%
     left_join(
       df %>%
-        select(participant,mean_tokens_pd,mean_tokens_ipd) %>%
-        by("participant")
+        dplyr::select(participant,mean_tokens_pd,mean_tokens_ipd),
+        by= "participant"
     )
   
   df_mean_pd_ipd <- df %>%
@@ -1248,18 +1248,31 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
   ##Graphique jeu PD ----
   df_plot_pd_in <- primary_data_means_pd %>%
     filter(str_detect(variable, "^mean_tokens_pd_in"))
-tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
-         aes(x = nbr_jetons_autres_joueurs,
-             y = mean_jetons_joueurs_groupe,
-             color = Player_type_PD)) +
-    geom_point(alpha = 2,size = 3) +
+  unique(df_plot_pd_in$Player_type_PD)
+  tokens_pd_in_groups <- ggplot(
+    df_plot_pd_in,
+    aes(x = nbr_jetons_autres_joueurs,y = mean_jetons_joueurs_groupe,color = Player_type_PD,group = Player_type_PD)) +
+    scale_y_continuous(limits = c(0, 4),breaks = 0:4) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 3) +
     theme_minimal() +
+    scale_color_discrete(
+      labels = c(
+        "Ingroup and Outgroup\nconditional cooperator"  = "ioCC (14%)",
+        "Only Ingroup\nconditional cooperator"   = "iCC (21%)",
+        "Only Outgroup\nconditional cooperator" = "oCC (6%)",
+        "Unconditional\ncooperator" = "uCC (9%)",
+        "Unconditional\nnon cooperator" = "uNC (10%)",
+        "Undefined" = "n.c (40%)"
+      )
+    )+
     labs(
       x = "Nombre de jetons des autres joueurs ingroup",
       y = "Moyenne des jetons du groupe",
       color = "Type de joueur (PD)",
-      title = "Nombre moyen de jetons investis par groupe en fonction des jetons ingroup dans le jeu PD"
-    )
+      title = "Nombre moyen de jetons investis par groupe en fonction des jetons ingroup dans le jeu PD")
+  
+  print(tokens_pd_in_groups)
  ggsave(
    filename = "results/figures/mean_tokens_pd_in_groups.png",
    plot = tokens_pd_in_groups, width = 10, height = 6,dpi = 300)
@@ -1270,16 +1283,28 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
         aes(x = nbr_jetons_autres_joueurs,
             y = mean_jetons_joueurs_groupe,
             color = Player_type_PD)) +
+   geom_line(linewidth = 1) +
    geom_point(alpha = 2,size = 3) +
    theme_minimal() +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_color_discrete(
+     labels = c(
+       "Ingroup and Outgroup\nconditional cooperator"  = "ioCC (14%)",
+       "Only Ingroup\nconditional cooperator"   = "iCC (21%)",
+       "Only Outgroup\nconditional cooperator" = "oCC (6%)",
+       "Unconditional\ncooperator" = "uCC (9%)",
+       "Unconditional\nnon cooperator" = "uNC (10%)",
+       "Undefined" = "n.c (40%)"
+     )
+   )+
    labs(
      x = "Nombre de jetons des autres joueurs outgroup",
      y = "Moyenne des jetons du groupe",
      color = "Type de joueur (PD)",
      title = "Nombre moyen de jetons investis par groupe en fonction des jetons outgroup dans le jeu PD"
    )
+ print(tokens_pd_out_groups)
  ggsave(
    filename = "results/figures/mean_tokens_pd_out_groups.png",
    plot = tokens_pd_out_groups, width = 10, height = 6,dpi = 300)
@@ -1293,7 +1318,18 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
             y = mean_jetons_joueurs_groupe,
             color = Player_type_IPD)) +
    geom_point(alpha = 2,size = 3) +
+   geom_line(linewidth = 1) +
    theme_minimal() +
+   scale_color_discrete(
+     labels = c(
+       "Ingroup and Outgroup\nconditional cooperator"  = "ioCC (15%)",
+       "Only Ingroup\nconditional cooperator"   = "iCC (13%)",
+       "Only Outgroup\nconditional cooperator" = "oCC (11%)",
+       "Unconditional\ncooperator" = "uCC (6%)",
+       "Unconditional\nnon cooperator" = "uNC (12%)",
+       "Undefined" = "n.c (43%)"
+     )
+   )+
    labs(
      x = "Nombre de jetons des autres joueurs ingroup",
      y = "Moyenne des jetons du groupe",
@@ -1311,8 +1347,19 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
         aes(x = nbr_jetons_autres_joueurs,
             y = mean_jetons_joueurs_groupe,
             color = Player_type_IPD)) +
+   geom_line(linewidth = 1) +
    geom_point(alpha = 2,size = 3) +
    theme_minimal() +
+   scale_color_discrete(
+     labels = c(
+       "Ingroup and Outgroup\nconditional cooperator"  = "ioCC (15%)",
+       "Only Ingroup\nconditional cooperator"   = "iCC (13%)",
+       "Only Outgroup\nconditional cooperator" = "oCC (11%)",
+       "Unconditional\ncooperator" = "uCC (6%)",
+       "Unconditional\nnon cooperator" = "uNC (12%)",
+       "Undefined" = "n.c (43%)"
+     )
+   )+
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
    labs(
@@ -1382,6 +1429,7 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
                                     y = mean_jetons_all_players,
                                     )) +
    geom_point(alpha = 2,size = 3) +
+   geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
    theme_minimal() +
@@ -1403,6 +1451,7 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
                                  y = mean_jetons_all_players,
                              )) +
    geom_point(alpha = 2,size = 3) +
+   geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
    theme_minimal() +
@@ -1423,6 +1472,7 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
                                  y = mean_jetons_all_players,
                              )) +
    geom_point(alpha = 2,size = 3) +
+   geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
    theme_minimal() +
@@ -1444,6 +1494,7 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
                                   y = mean_jetons_all_players,
                               )) +
    geom_point(alpha = 2,size = 3) +
+   geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
    theme_minimal() +
@@ -1463,84 +1514,108 @@ tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
  
 
  #Graphiques 3D ----
-df_plot_pd_in_all <- df_plot_pd_in_all %>%
-   rename(variable_in_all = variable) %>%
-   rename(mean_jetons_pd_in_all = mean_jetons_all_players)
+ ##pd 3D all ----
+ df_plot_pd_3D_all <- df %>%
+   summarise(
+     across(
+       starts_with("pd_in"),
+       ~ mean(.x, na.rm = TRUE)
+     )
+   )
  
- df_plot_pd_out_all <- df_plot_pd_out_all %>%
-   rename(variable_out_all = variable) %>%
-   rename(mean_jetons_pd_out_all = mean_jetons_all_players)
- 
- df_plot_pd_3D_all <- df_plot_pd_in_all %>%
-   left_join(
-     df_plot_pd_out_all,
-     by="nbr_jetons_autres_joueurs")
-   
+ df_plot_pd_3D_all <- df_plot_pd_3D_all %>%
+   pivot_longer(
+     cols = c(
+       starts_with("pd_in"),
+     ),
+     names_to = "variable",
+     values_to = "value"
+   ) 
 
- 
+
+df_plot_pd_3D_all <- df_plot_pd_3D_all %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d"))
+  )
+
+df_plot_pd_3D_all <- df_plot_pd_3D_all %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
+  )
+
 tokens_PD_all_3D <- plot_ly(
-   df_plot_pd_3D_all,
-   x = ~nbr_jetons_autres_joueurs,
-   y = ~nbr_jetons_autres_joueurs,
-   z = ~mean_jetons_pd_in_all,
-   type = "scatter3d",
-   mode = "markers",
-   color = ~mean_jetons_pd_in_all
- ) %>%
-   layout(
-     scene = list(
-       xaxis = list(
-         title = "Nombre de jetons des autres joueurs ingroup",
-         range = c(0, 4)),
-       yaxis = list(
-         title = "Nombre de jetons des autres joueurs outgroup",
-         range = c(0, 4)),
-       zaxis = list(
-         title = "Moyenne des jetons investis par l'ensemble des joueurs dans le jeu IPD",
-         range = c(0, 4))))
-
+  df_plot_pd_3D_all %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis (PD)", range = c(0, 4))
+    )
+  )
+print(tokens_PD_all_3D)
 htmlwidgets::saveWidget(
   tokens_PD_all_3D,
   "results/figures/mean_tokens_3D_pd_all.html"
 )
 
 
-df_plot_ipd_in_all <- df_plot_ipd_in_all %>%
-  rename(variable_in_all = variable) %>%
-  rename(mean_jetons_ipd_in_all = mean_jetons_all_players)
+##ipd all 3D ----
+df_plot_ipd_3D_all <- df %>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  )
 
-df_plot_ipd_out_all <- df_plot_ipd_out_all %>%
-  rename(variable_out_all = variable) %>%
-  rename(mean_jetons_ipd_out_all = mean_jetons_all_players)
+df_plot_ipd_3D_all <- df_plot_ipd_3D_all %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) 
 
-df_plot_ipd_3D_all <- df_plot_ipd_in_all %>%
-  left_join(
-    df_plot_ipd_out_all,
-    by="nbr_jetons_autres_joueurs")
+
+df_plot_ipd_3D_all <- df_plot_ipd_3D_all %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=ipd_in)\\d"))
+  )
+
+df_plot_ipd_3D_all <- df_plot_ipd_3D_all %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
+  )
+
+
 tokens_IPD_all_3D <- plot_ly(
-  df_plot_pd_3D_all,
-  x = ~nbr_jetons_autres_joueurs,
-  y = ~nbr_jetons_autres_joueurs,
-  z = ~mean_jetons_ipd_in_all,
+  df_plot_ipd_3D_all,
+  x = ~value_ingroup,
+  y = ~value_outgroup,
+  z = ~value,
   type = "scatter3d",
   mode = "markers",
-  color = ~mean_jetons_ipd_in_all
+  color = ~value_ingroup
 ) %>%
   layout(
     scene = list(
-      xaxis = list(
-        title = "Nombre de jetons des autres joueurs ingroup",
-        range = c(0, 4)),
-      yaxis = list(
-        title = "Nombre de jetons des autres joueurs outgroup",
-        range = c(0, 4)),
-      zaxis = list(
-        title = "Moyenne des jetons investis par l'ensemble des joueurs dans le jeu IPD",
-        range = c(0, 4))))
-
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis par l'ensemble des joueurs (IPD)", range = c(0, 4))
+    )
+  )
 htmlwidgets::saveWidget(
   tokens_PD_all_3D,
-  "results/figures/tokens_IPD_all_3D.html"
+  "results/figures/mean_tokens_3D_ipd_all.html"
 )
 #Analyses exploratoires ----
 #H6 ----
