@@ -2340,11 +2340,23 @@ df <- df %>%
     )
   )
 
+df <- df %>%
+  mutate(
+    Player_type_IPD_recode = case_when(
+      Player_type_IPD == "Unconditional\nnon cooperator" ~ "0",
+      Player_type_IPD == "Unconditional\ncooperator" ~ "1",
+      Player_type_IPD == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_IPD == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_IPD == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_IPD == "Undefined" ~ "5",
+      TRUE ~ Player_type_IPD
+    )
+  )
 
 tbl_summary(
   data = df,
   by = part_1_selected_task_name,
-  include = c(Player_type_IPD,Player_type_PD_recode),
+  include = c(Player_type_IPD_recode,Player_type_PD_recode),
   missing = "no"
 ) %>%
   add_overall() %>%
