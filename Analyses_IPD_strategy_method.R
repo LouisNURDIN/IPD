@@ -17,6 +17,8 @@ library(tidyr)
 library(pwr)
 library(tidyverse)
 library(modelsummary)
+install.packages(("plotly"))
+library(plotly)
 
 
 # Lire les données simulées
@@ -569,7 +571,7 @@ ggsave(
 )
 
 
-#test diagramme alluvial
+#test diagramme alluvial ----
 install.packages("ggalluvial")
 library(ggalluvial)
 
@@ -592,6 +594,7 @@ alv_plot <- ggplot(
     expand = c(.1, .1)
   ) +
   theme_minimal()
+print(alv_plot)
 ggsave(
   filename = "results/figures/graphique alluvial pd-ipd.png",
   plot = alv_plot,
@@ -600,6 +603,83 @@ ggsave(
   dpi = 300
 )
 
+
+
+#Heatmap ----
+heatmap <- ggplot(
+  df_alluvial,
+  aes(
+    x = Player_type_PD,
+    y = Player_type_IPD,
+    fill = n
+  )
+) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(
+    low = "white",
+    high = "red"
+  ) +
+  scale_fill_gradient(
+    low = "white",
+    high = "red",
+    breaks = c(0, 25, 50, 75, 100,139)
+  )
+  theme_minimal() +
+  labs(
+    x = "Type de joueur dans PD",
+    y = "Type de joueur dans IPD",
+    fill = "Nombre\nde joueurs"
+  )
+  print(heatmap)
+ggsave(
+  filename = "results/figures/heatmap pd-ipd.png",
+  plot = heatmap,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+#Heatmap avec proportion par groupes ----
+df_alluvial_prop <- df_alluvial %>%
+  group_by(Player_type_PD) %>%
+  mutate(
+    total_PD = sum(n),
+    prop = n / total_PD *100
+  ) %>%
+  ungroup()
+
+heatmap_prop <- ggplot(
+  df_alluvial_prop,
+  aes(
+    x = Player_type_PD,
+    y = Player_type_IPD,
+    fill = prop
+  )
+) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(
+    low = "white",
+    high = "red"
+  ) +
+  scale_fill_gradient(
+    low = "white",
+    high = "red",
+    breaks = c(0,25,50,75,100)
+  )
+theme_minimal() +
+  labs(
+    x = "Type de joueur dans PD",
+    y = "Type de joueur dans IPD",
+    fill = "% de joueurs au sein du groupe"
+  )
+print(heatmap_prop)
+ggsave(
+  filename = "results/figures/heatmap pd_ipd proportion.png",
+  plot = heatmap_prop,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
 #Vérification des hypothèses ----
 
 #H1 ----
@@ -891,15 +971,6 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
 
 #H5 ----
 #Calcul du nombre de jetons investis dans pd et ipd
-df <- df %>%
-    mutate(
-      pd_tokens = rowSums(select(., pd_in0_out0:pd_in4_out4), na.rm = TRUE))
-
-  
-  df <- df %>%
-    mutate(
-      ipd_tokens = rowSums(select(., ipd_in0_out0:ipd_in4_out4), na.rm = TRUE))
-
   test <- t.test(df$ipd_uncond, df$pd_uncond,
                  paired = TRUE,
                  alternative = "greater")
@@ -978,7 +1049,499 @@ df <- df %>%
     fmt = 4,
     title = "Effet du nombre de jetons investis de manière inconditionnelle en l'absence de conflit sur le nombre de jetons investis de manière inconditionnelle en présence de conflit"
   )
+
   
+  
+  #H5 bonus ----
+  #Somme de tous les jetons investis de manière conditionnelle par joueur (jeu des matrices)
+  names(select(df, starts_with("pd_in")))
+  names(select(df, starts_with("ipd_in")))
+  
+  df <- df %>%
+    mutate(
+      all_tokens_pd = rowSums(
+        select(., starts_with("pd_in")),
+        na.rm = TRUE
+      ),
+      all_tokens_ipd = rowSums(
+        select(., starts_with("ipd_in")),
+        na.rm = TRUE
+      ),
+      diff_tokens_pd_ipd = all_tokens_pd - all_tokens_ipd
+    )
+  
+  names(select(df, starts_with("pd_in")))
+  names(select(df, starts_with("ipd_in")))
+
+  #Même test que dans H5  
+  test_tokens_cond <- t.test(df$all_tokens_ipd, df$all_tokens_pd,
+                 paired = TRUE,
+                 alternative = "greater")
+  
+  test_tokens_cond
+  tab_test_tokens_cond <- data.frame(
+    mean_ipd = mean(df$all_tokens_ipd, na.rm = TRUE),
+    mean_pd  = mean(df$all_tokens_pd, na.rm = TRUE),
+    diff     = mean(df$all_tokens_ipd, na.rm = TRUE) - mean(df$all_tokens_pd, na.rm = TRUE),
+    t_value  = test$statistic,
+    df       = test$parameter,
+    p_value  = test$p.value
+  )
+  
+  tab_test_tokens_cond
+ 
+  
+#Graphique avec les moyennes de jetons investis par groupe
+  df <- df %>%
+    mutate(
+      mean_tokens_pd = rowMeans(
+        select(., starts_with("pd_in")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd = rowMeans(
+        select(., starts_with("ipd_in")),
+        na.rm = TRUE
+      )
+    )
+
+  primary_data <- primary_data %>%
+    left_join(
+      df %>%
+        select(participant,mean_tokens_pd,mean_tokens_ipd) %>%
+        by("participant")
+    )
+  
+  df_mean_pd_ipd <- df %>%
+    mutate(
+      mean_tokens_pd_in0 = rowMeans(
+        select(., starts_with("pd_in0")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_in1 = rowMeans(
+        select(., starts_with("pd_in1")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_in2 = rowMeans(
+        select(., starts_with("pd_in2")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_in3 = rowMeans(
+        select(., starts_with("pd_in3")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_in4 = rowMeans(
+        select(., starts_with("pd_in4")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_in0 = rowMeans(
+        select(., starts_with("ipd_in0")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_in1 = rowMeans(
+        select(., starts_with("ipd_in1")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_in2 = rowMeans(
+        select(., starts_with("ipd_in2")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_in3 = rowMeans(
+        select(., starts_with("ipd_in3")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_in4 = rowMeans(
+        select(., starts_with("ipd_in4")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_out0 = rowMeans(
+        select(., starts_with("pd") & ends_with("out0")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_out1 = rowMeans(
+        select(., starts_with("pd") & ends_with("out1")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_out2 = rowMeans(
+        select(., starts_with("pd") & ends_with("out2")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_out3 = rowMeans(
+        select(., starts_with("pd") & ends_with("out3")),
+        na.rm = TRUE
+      ),
+      mean_tokens_pd_out4 = rowMeans(
+        select(., starts_with("pd") & ends_with("out4")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_out0 = rowMeans(
+        select(., starts_with("ipd") & ends_with("out0")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_out1 = rowMeans(
+        select(., starts_with("ipd") & ends_with("out1")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_out2 = rowMeans(
+        select(., starts_with("ipd") & ends_with("out2")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_out3 = rowMeans(
+        select(., starts_with("ipd") & ends_with("out3")),
+        na.rm = TRUE
+      ),
+      mean_tokens_ipd_out4 = rowMeans(
+        select(., starts_with("ipd") & ends_with("out4")),
+        na.rm = TRUE
+      )
+      )  
+
+  primary_data <- primary_data %>%
+    left_join(
+      df_mean_pd_ipd %>%
+        select(participant, starts_with("mean")),
+      by = "participant"
+    )
+  
+  primary_data_means_pd <- primary_data %>%
+    pivot_longer(
+      cols = c(
+        starts_with("mean_tokens_pd_in"),
+        starts_with("mean_tokens_pd_out"),
+      ),
+      names_to = "variable",
+      values_to = "value"
+    ) %>%
+    group_by(Player_type_PD, variable) %>%
+    summarise(
+      mean_jetons_joueurs_groupe = mean(value, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  primary_data_means_pd <- primary_data_means_pd %>%
+    mutate(
+      nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
+    )
+  
+  
+  primary_data_means_ipd <- primary_data %>%
+    pivot_longer(
+      cols = c(
+        starts_with("mean_tokens_ipd_in"),
+        starts_with("mean_tokens_ipd_out"),
+      ),
+      names_to = "variable",
+      values_to = "value"
+    ) %>%
+    group_by(Player_type_IPD, variable) %>%
+    summarise(
+      mean_jetons_joueurs_groupe = mean(value, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  primary_data_means_ipd <- primary_data_means_ipd %>%
+    mutate(
+      nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
+    )
+  
+  
+  #Tracer les graphiques ----
+  ##Graphique jeu PD ----
+  df_plot_pd_in <- primary_data_means_pd %>%
+    filter(str_detect(variable, "^mean_tokens_pd_in"))
+tokens_pd_in_groups <-  ggplot(df_plot_pd_in,
+         aes(x = nbr_jetons_autres_joueurs,
+             y = mean_jetons_joueurs_groupe,
+             color = Player_type_PD)) +
+    geom_point(alpha = 2,size = 3) +
+    theme_minimal() +
+    labs(
+      x = "Nombre de jetons des autres joueurs ingroup",
+      y = "Moyenne des jetons du groupe",
+      color = "Type de joueur (PD)",
+      title = "Nombre moyen de jetons investis par groupe en fonction des jetons ingroup dans le jeu PD"
+    )
+ ggsave(
+   filename = "results/figures/mean_tokens_pd_in_groups.png",
+   plot = tokens_pd_in_groups, width = 10, height = 6,dpi = 300)
+ 
+ df_plot_pd_out <- primary_data_means_pd %>%
+   filter(str_detect(variable, "^mean_tokens_pd_out"))
+ tokens_pd_out_groups <- ggplot(df_plot_pd_out,
+        aes(x = nbr_jetons_autres_joueurs,
+            y = mean_jetons_joueurs_groupe,
+            color = Player_type_PD)) +
+   geom_point(alpha = 2,size = 3) +
+   theme_minimal() +
+   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   labs(
+     x = "Nombre de jetons des autres joueurs outgroup",
+     y = "Moyenne des jetons du groupe",
+     color = "Type de joueur (PD)",
+     title = "Nombre moyen de jetons investis par groupe en fonction des jetons outgroup dans le jeu PD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_pd_out_groups.png",
+   plot = tokens_pd_out_groups, width = 10, height = 6,dpi = 300)
+ 
+ 
+ ##Graphique jeu IPD ----
+ df_plot_ipd_in <- primary_data_means_ipd %>%
+   filter(str_detect(variable, "^mean_tokens_ipd_in"))
+ tokens_ipd_in_groups <- ggplot(df_plot_ipd_in,
+        aes(x = nbr_jetons_autres_joueurs,
+            y = mean_jetons_joueurs_groupe,
+            color = Player_type_IPD)) +
+   geom_point(alpha = 2,size = 3) +
+   theme_minimal() +
+   labs(
+     x = "Nombre de jetons des autres joueurs ingroup",
+     y = "Moyenne des jetons du groupe",
+     color = "Type de joueur (IPD)",
+     title = "Nombre moyen de jetons investis par groupe en fonction des jetons ingroup dans le jeu IPD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_ipd_in_groups.png",
+   plot =  tokens_ipd_in_groups, width = 10, height = 6,dpi = 300)
+ 
+ 
+ df_plot_ipd_out <- primary_data_means_ipd %>%
+   filter(str_detect(variable, "^mean_tokens_ipd_out"))
+ tokens_ipd_out_groups <- ggplot(df_plot_ipd_out,
+        aes(x = nbr_jetons_autres_joueurs,
+            y = mean_jetons_joueurs_groupe,
+            color = Player_type_IPD)) +
+   geom_point(alpha = 2,size = 3) +
+   theme_minimal() +
+   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   labs(
+     x = "Nombre de jetons des autres joueurs outgroup",
+     y = "Moyenne des jetons du groupe",
+     color = "Type de joueur (IPD)",
+     title = "Nombre moyen de jetons investis par groupe en fonction des jetons outgroup dans le jeu IPD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_ipd_out_groups.png",
+   plot =  tokens_ipd_out_groups, width = 10, height = 6,dpi = 300)
+ 
+ 
+ 
+ library(patchwork)
+ 
+  (tokens_pd_in_groups | tokens_pd_out_groups) /
+   (tokens_ipd_in_groups | tokens_ipd_out_groups) 
+
+ #Graphique tous joueurs ----
+ primary_data_means_pd_all <- primary_data %>%
+   pivot_longer(
+     cols = c(
+       starts_with("mean_tokens_pd_in"),
+       starts_with("mean_tokens_pd_out"),
+     ),
+     names_to = "variable",
+     values_to = "value"
+   ) %>%
+   group_by(variable) %>%
+   summarise(
+     mean_jetons_all_players = mean(value, na.rm = TRUE),
+     .groups = "drop"
+   )
+ 
+ primary_data_means_pd_all <- primary_data_means_pd_all %>%
+   mutate(
+     nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
+   )
+ 
+ 
+ primary_data_means_ipd_all <- primary_data %>%
+   pivot_longer(
+     cols = c(
+       starts_with("mean_tokens_ipd_in"),
+       starts_with("mean_tokens_ipd_out"),
+     ),
+     names_to = "variable",
+     values_to = "value"
+   ) %>%
+   group_by(variable) %>%
+   summarise(
+     mean_jetons_all_players = mean(value, na.rm = TRUE),
+     .groups = "drop"
+   )
+ 
+ primary_data_means_ipd_all <- primary_data_means_ipd_all %>%
+   mutate(
+     nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
+   )
+ 
+ ##Graphique PD all players ----
+ df_plot_pd_in_all <- primary_data_means_pd_all %>%
+   filter(str_detect(variable, "^mean_tokens_pd_in"))
+ tokens_pd_in_all <-  ggplot(df_plot_pd_in_all,
+                                aes(x = nbr_jetons_autres_joueurs,
+                                    y = mean_jetons_all_players,
+                                    )) +
+   geom_point(alpha = 2,size = 3) +
+   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   theme_minimal() +
+   labs(
+     x = "Nombre de jetons des autres joueurs ingroup",
+     y = "Moyenne des jetons de l'ensemble des joueurs",
+     title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons ingroup dans le jeu PD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_pd_in_all_players.png",
+   plot = tokens_pd_in_all, width = 10, height = 6,dpi = 300)
+ 
+
+ 
+ df_plot_pd_out_all <- primary_data_means_pd_all %>%
+   filter(str_detect(variable, "^mean_tokens_pd_out"))
+ tokens_pd_out_all <-  ggplot(df_plot_pd_out_all,
+                             aes(x = nbr_jetons_autres_joueurs,
+                                 y = mean_jetons_all_players,
+                             )) +
+   geom_point(alpha = 2,size = 3) +
+   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   theme_minimal() +
+   labs(
+     x = "Nombre de jetons des autres joueurs outgroup",
+     y = "Moyenne des jetons de l'ensemble des joueurs",
+     title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons outgroup dans le jeu PD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_pd_out_all_players.png",
+   plot = tokens_pd_out_all, width = 10, height = 6,dpi = 300)
+ 
+##Graphiques IPD all players ----
+ df_plot_ipd_in_all <- primary_data_means_ipd_all %>%
+   filter(str_detect(variable, "^mean_tokens_ipd_in"))
+ tokens_ipd_in_all <-  ggplot(df_plot_ipd_in_all,
+                             aes(x = nbr_jetons_autres_joueurs,
+                                 y = mean_jetons_all_players,
+                             )) +
+   geom_point(alpha = 2,size = 3) +
+   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   theme_minimal() +
+   labs(
+     x = "Nombre de jetons des autres joueurs ingroup",
+     y = "Moyenne des jetons de l'ensemble des joueurs",
+     title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons ingroup dans le jeu IPD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_ipd_in_all_players.png",
+   plot = tokens_ipd_in_all, width = 10, height = 6,dpi = 300)
+ 
+ 
+ 
+ df_plot_ipd_out_all <- primary_data_means_ipd_all %>%
+   filter(str_detect(variable, "^mean_tokens_ipd_out"))
+ tokens_ipd_out_all <-  ggplot(df_plot_ipd_out_all,
+                              aes(x = nbr_jetons_autres_joueurs,
+                                  y = mean_jetons_all_players,
+                              )) +
+   geom_point(alpha = 2,size = 3) +
+   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   theme_minimal() +
+   labs(
+     x = "Nombre de jetons des autres joueurs outgroup",
+     y = "Moyenne des jetons de l'ensemble des joueurs",
+     title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons outgroup dans le jeu IPD"
+   )
+ ggsave(
+   filename = "results/figures/mean_tokens_ipd_out_all_players.png",
+   plot = tokens_ipd_out_all, width = 10, height = 6,dpi = 300)
+ 
+ #Tous les graphiques all players ensemble
+ (tokens_pd_in_all | tokens_pd_out_all) /
+   (tokens_ipd_in_all | tokens_ipd_out_all)
+ 
+ 
+
+ #Graphiques 3D ----
+df_plot_pd_in_all <- df_plot_pd_in_all %>%
+   rename(variable_in_all = variable) %>%
+   rename(mean_jetons_pd_in_all = mean_jetons_all_players)
+ 
+ df_plot_pd_out_all <- df_plot_pd_out_all %>%
+   rename(variable_out_all = variable) %>%
+   rename(mean_jetons_pd_out_all = mean_jetons_all_players)
+ 
+ df_plot_pd_3D_all <- df_plot_pd_in_all %>%
+   left_join(
+     df_plot_pd_out_all,
+     by="nbr_jetons_autres_joueurs")
+   
+
+ 
+tokens_PD_all_3D <- plot_ly(
+   df_plot_pd_3D_all,
+   x = ~nbr_jetons_autres_joueurs,
+   y = ~nbr_jetons_autres_joueurs,
+   z = ~mean_jetons_pd_in_all,
+   type = "scatter3d",
+   mode = "markers",
+   color = ~mean_jetons_pd_in_all
+ ) %>%
+   layout(
+     scene = list(
+       xaxis = list(
+         title = "Nombre de jetons des autres joueurs ingroup",
+         range = c(0, 4)),
+       yaxis = list(
+         title = "Nombre de jetons des autres joueurs outgroup",
+         range = c(0, 4)),
+       zaxis = list(
+         title = "Moyenne des jetons investis par l'ensemble des joueurs dans le jeu IPD",
+         range = c(0, 4))))
+
+htmlwidgets::saveWidget(
+  tokens_PD_all_3D,
+  "results/figures/mean_tokens_3D_pd_all.html"
+)
+
+
+df_plot_ipd_in_all <- df_plot_ipd_in_all %>%
+  rename(variable_in_all = variable) %>%
+  rename(mean_jetons_ipd_in_all = mean_jetons_all_players)
+
+df_plot_ipd_out_all <- df_plot_ipd_out_all %>%
+  rename(variable_out_all = variable) %>%
+  rename(mean_jetons_ipd_out_all = mean_jetons_all_players)
+
+df_plot_ipd_3D_all <- df_plot_ipd_in_all %>%
+  left_join(
+    df_plot_ipd_out_all,
+    by="nbr_jetons_autres_joueurs")
+tokens_IPD_all_3D <- plot_ly(
+  df_plot_pd_3D_all,
+  x = ~nbr_jetons_autres_joueurs,
+  y = ~nbr_jetons_autres_joueurs,
+  z = ~mean_jetons_ipd_in_all,
+  type = "scatter3d",
+  mode = "markers",
+  color = ~mean_jetons_ipd_in_all
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(
+        title = "Nombre de jetons des autres joueurs ingroup",
+        range = c(0, 4)),
+      yaxis = list(
+        title = "Nombre de jetons des autres joueurs outgroup",
+        range = c(0, 4)),
+      zaxis = list(
+        title = "Moyenne des jetons investis par l'ensemble des joueurs dans le jeu IPD",
+        range = c(0, 4))))
+
+htmlwidgets::saveWidget(
+  tokens_PD_all_3D,
+  "results/figures/tokens_IPD_all_3D.html"
+)
 #Analyses exploratoires ----
 #H6 ----
   
