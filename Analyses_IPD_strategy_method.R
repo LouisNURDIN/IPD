@@ -3,22 +3,29 @@ library(readxl)
 library(dplyr)
 library(Hmisc)
 library(ggplot2)
+install.packages("ggstats")
 library(ggstats)
 library(ggsci)  
 library(viridis)
+install.packages(("ggtext"))
 library(ggtext)
 library(broom)
+install.packages("exact2x2")
 library(exact2x2)
+install.packages("TOSTER")
 library(TOSTER)
 library(Exact)
 library(viridis)
+install.packages("statpsych")
 library(statpsych)
 library(tidyr)
+install.packages("pwr")
 library(pwr)
 library(tidyverse)
 library(modelsummary)
 install.packages(("plotly"))
 library(plotly)
+
 
 
 # Lire les données simulées
@@ -1617,6 +1624,655 @@ htmlwidgets::saveWidget(
   tokens_PD_all_3D,
   "results/figures/mean_tokens_3D_ipd_all.html"
 )
+
+#Graphique 3D PD - Groups ----
+
+df <- df %>%
+  left_join(
+    primary_data %>%
+      select(participant,Player_type_PD,Player_type_IPD),
+    by = "participant")
+
+df <- df %>%
+  mutate(Player_PD_recode = NA)
+df <- df %>%
+  mutate(
+    Player_type_PD_recode = case_when(
+      Player_type_PD == "Unconditional\nnon cooperator" ~ "0",
+      Player_type_PD == "Unconditional\ncooperator" ~ "1",
+      Player_type_PD == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_PD == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_PD == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_PD == "Undefined" ~ "5",
+      TRUE ~ Player_type_PD
+    )
+  )
+unique(df$Player_type_PD)
+##PD - UNC ----
+df_plot_pd_unc_3D <- df %>%
+  filter(Player_type_PD == "Unconditional\nnon cooperator")%>%
+  summarise(
+    across(
+      starts_with("pd_in"),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  )
+
+df_plot_pd_unc_3D <- df_plot_pd_unc_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("pd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) 
+
+
+df_plot_pd_unc_3D <- df_plot_pd_unc_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d"))
+  )
+
+df_plot_pd_unc_3D <- df_plot_pd_unc_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
+  )
+
+
+tokens_pd_unc_3D <- plot_ly(
+  df_plot_pd_unc_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe UNC", range = c(0, 4))
+    )
+  )
+print(tokens_pd_unc_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_unc_3D,
+  "results/figures/mean_tokens_pd_unc_3D.html"
+)
+
+##PD - UC ----
+df_plot_pd_uc_3D <- df %>%
+  filter(Player_type_PD == "Unconditional\ncooperator")%>%
+  summarise(
+    across(
+      starts_with("pd_in"),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  )
+
+df_plot_pd_uc_3D <- df_plot_pd_uc_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("pd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) 
+
+
+df_plot_pd_uc_3D <- df_plot_pd_uc_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d"))
+  )
+
+df_plot_pd_uc_3D <- df_plot_pd_uc_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
+  )
+
+
+tokens_pd_uc_3D <- plot_ly(
+  df_plot_pd_uc_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe UC", range = c(0, 4))
+    )
+  )
+print(tokens_pd_uc_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_uc_3D,
+  "results/figures/mean_tokens_pd_uc_3D.html"
+)
+
+##PD - ioCC ----
+df_plot_pd_ioCC_3D <- df %>%
+  filter(Player_type_PD == "Ingroup and Outgroup\nconditional cooperator")%>%
+  summarise(
+    across(
+      starts_with("pd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_pd_ioCC_3D <- df_plot_pd_ioCC_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("pd_in"),
+      ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_pd_ioCC_3D <- df_plot_pd_ioCC_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d")))
+
+df_plot_pd_ioCC_3D <- df_plot_pd_ioCC_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_pd_ioCC_3D <- plot_ly(
+  df_plot_pd_ioCC_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe ioCC", range = c(0, 4))
+    )
+  )
+print(tokens_pd_ioCC_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_ioCC_3D,
+  "results/figures/mean_tokens_pd_ioCC_3D.html"
+)
+
+##PD - iCC ----
+df_plot_pd_iCC_3D <- df %>%
+  filter(Player_type_PD == "Only Ingroup\nconditional cooperator")%>%
+  summarise(
+    across(
+      starts_with("pd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_pd_iCC_3D <- df_plot_pd_iCC_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("pd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_pd_iCC_3D <- df_plot_pd_iCC_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d")))
+
+df_plot_pd_iCC_3D <- df_plot_pd_iCC_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_pd_iCC_3D <- plot_ly(
+  df_plot_pd_iCC_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe iCC", range = c(0, 4))
+    )
+  )
+print(tokens_pd_iCC_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_iCC_3D,
+  "results/figures/mean_tokens_pd_iCC_3D.html"
+)
+
+##PD - oCC ----
+df_plot_pd_oCC_3D <- df %>%
+  filter(Player_type_PD == "Only Outgroup\nconditional cooperator")%>%
+  summarise(
+    across(
+      starts_with("pd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_pd_oCC_3D <- df_plot_pd_oCC_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("pd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_pd_oCC_3D <- df_plot_pd_oCC_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d")))
+
+df_plot_pd_oCC_3D <- df_plot_pd_oCC_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_pd_oCC_3D <- plot_ly(
+  df_plot_pd_oCC_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe oCC", range = c(0, 4))
+    )
+  )
+print(tokens_pd_oCC_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_oCC_3D,
+  "results/figures/mean_tokens_pd_oCC_3D.html"
+)
+
+##PD - nc ----
+df_plot_pd_nc_3D <- df %>%
+  filter(Player_type_PD == "Undefined")%>%
+  summarise(
+    across(
+      starts_with("pd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_pd_nc_3D <- df_plot_pd_nc_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("pd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_pd_nc_3D <- df_plot_pd_nc_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d")))
+
+df_plot_pd_nc_3D <- df_plot_pd_nc_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_pd_nc_3D <- plot_ly(
+  df_plot_pd_nc_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe non défini", range = c(0, 4))
+    )
+  )
+print(tokens_pd_nc_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_nc_3D,
+  "results/figures/mean_tokens_pd_nc_3D.html"
+)
+
+#Graphique 3D IPD - groups ----
+df <- df %>%
+  mutate(
+    Player_type_IPD = case_when(
+      Player_type_IPD == "0" ~ "Unconditional\nnon cooperator",
+      Player_type_IPD == "1" ~ "Unconditional\ncooperator",
+      Player_type_IPD == "2" ~ "Only Ingroup\nconditional cooperator",
+      Player_type_IPD == "3" ~ "Only Outgroup\nconditional cooperator",
+      Player_type_IPD == "4" ~ "Ingroup and Outgroup\nconditional cooperator",
+      Player_type_IPD == "5" ~ "Undefined",
+      TRUE ~ Player_type_IPD
+    )
+  )
+unique(df$Player_type_IPD)
+
+##IPD - UNC ----
+df_plot_ipd_unc_3D <- df %>%
+  filter(Player_type_IPD == "Unconditional\nnon cooperator")%>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  )
+
+df_plot_ipd_unc_3D <- df_plot_ipd_unc_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) 
+
+
+df_plot_ipd_unc_3D <- df_plot_ipd_unc_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=ipd_in)\\d"))
+  )
+
+df_plot_ipd_unc_3D <- df_plot_ipd_unc_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
+  )
+
+
+tokens_ipd_unc_3D <- plot_ly(
+  df_plot_ipd_unc_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu IPD par le groupe UNC", range = c(0, 4))
+    )
+  )
+print(tokens_ipd_unc_3D)
+htmlwidgets::saveWidget(
+  tokens_ipd_unc_3D,
+  "results/figures/mean_tokens_ipd_unc_3D.html"
+)
+
+##IPD - UC ----
+df_plot_ipd_uc_3D <- df %>%
+  filter(Player_type_IPD == "Unconditional\ncooperator")%>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  )
+
+df_plot_ipd_uc_3D <- df_plot_ipd_uc_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) 
+
+
+df_plot_ipd_uc_3D <- df_plot_ipd_uc_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=ipd_in)\\d"))
+  )
+
+df_plot_ipd_uc_3D <- df_plot_ipd_uc_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
+  )
+
+
+tokens_ipd_uc_3D <- plot_ly(
+  df_plot_ipd_uc_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu IPD par le groupe UC", range = c(0, 4))
+    )
+  )
+print(tokens_ipd_uc_3D)
+htmlwidgets::saveWidget(
+  tokens_ipd_uc_3D,
+  "results/figures/mean_tokens_ipd_uc_3D.html"
+)
+
+##IPD - ioCC ----
+df_plot_ipd_ioCC_3D <- df %>%
+  filter(Player_type_IPD == "Ingroup and Outgroup\nconditional cooperator")%>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_ipd_ioCC_3D <- df_plot_ipd_ioCC_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_ipd_ioCC_3D <- df_plot_ipd_ioCC_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=ipd_in)\\d")))
+
+df_plot_ipd_ioCC_3D <- df_plot_ipd_ioCC_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_ipd_ioCC_3D <- plot_ly(
+  df_plot_ipd_ioCC_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu IPD par le groupe ioCC", range = c(0, 4))
+    )
+  )
+print(tokens_ipd_ioCC_3D)
+htmlwidgets::saveWidget(
+  tokens_ipd_ioCC_3D,
+  "results/figures/mean_tokens_ipd_ioCC_3D.html"
+)
+
+##IPD - iCC ----
+df_plot_ipd_iCC_3D <- df %>%
+  filter(Player_type_IPD == "Only Ingroup\nconditional cooperator")%>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_ipd_iCC_3D <- df_plot_ipd_iCC_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_ipd_iCC_3D <- df_plot_ipd_iCC_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=ipd_in)\\d")))
+
+df_plot_ipd_iCC_3D <- df_plot_ipd_iCC_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_ipd_iCC_3D <- plot_ly(
+  df_plot_pd_iCC_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu IPD par le groupe iCC", range = c(0, 4))
+    )
+  )
+print(tokens_ipd_iCC_3D)
+htmlwidgets::saveWidget(
+  tokens_ipd_iCC_3D,
+  "results/figures/mean_tokens_ipd_iCC_3D.html"
+)
+
+##IPD - oCC ----
+df_plot_ipd_oCC_3D <- df %>%
+  filter(Player_type_IPD == "Only Outgroup\nconditional cooperator")%>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_ipd_oCC_3D <- df_plot_ipd_oCC_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_ipd_oCC_3D <- df_plot_ipd_oCC_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=pd_in)\\d")))
+
+df_plot_ipd_oCC_3D <- df_plot_ipd_oCC_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_ipd_oCC_3D <- plot_ly(
+  df_plot_ipd_oCC_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu IPD par le groupe oCC", range = c(0, 4))
+    )
+  )
+print(tokens_ipd_oCC_3D)
+htmlwidgets::saveWidget(
+  tokens_ipd_oCC_3D,
+  "results/figures/mean_tokens_ipd_oCC_3D.html"
+)
+
+##IPD - nc ----
+df_plot_ipd_nc_3D <- df %>%
+  filter(Player_type_IPD == "Undefined")%>%
+  summarise(
+    across(
+      starts_with("ipd_in"),
+      ~ mean(.x, na.rm = TRUE)))
+
+df_plot_ipd_nc_3D <- df_plot_ipd_nc_3D %>%
+  pivot_longer(
+    cols = c(
+      starts_with("ipd_in"),
+    ),
+    names_to = "variable",
+    values_to = "value") 
+
+
+df_plot_ipd_nc_3D <- df_plot_ipd_nc_3D %>%
+  mutate(
+    value_ingroup = as.numeric(stringr::str_extract(variable, "(?<=ipd_in)\\d")))
+
+df_plot_ipd_nc_3D <- df_plot_ipd_nc_3D %>%
+  mutate(
+    value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
+
+
+tokens_ipd_nc_3D <- plot_ly(
+  df_plot_ipd_nc_3D %>% arrange(value_ingroup, value_outgroup),
+  x = ~value_ingroup,
+  y = ~value,
+  z = ~value_outgroup,
+  type = "scatter3d",
+  mode = "lines+markers",
+  color = ~factor(value_ingroup),
+  line = list(width = 4)
+) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
+      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
+      zaxis = list(title = "Moyenne des jetons investis dans le jeu IPD par le groupe non défini", range = c(0, 4))
+    )
+  )
+print(tokens_ipd_nc_3D)
+htmlwidgets::saveWidget(
+  tokens_pd_nc_3D,
+  "results/figures/mean_tokens_ipd_nc_3D.html"
+)
+
+
+
 #Analyses exploratoires ----
 #H6 ----
   
