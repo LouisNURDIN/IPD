@@ -1587,4 +1587,42 @@ tbl_summary(
   ) %>%
   bold_p()
 
+#Test effet d'ordre ----
+df <- df %>%
+  left_join(
+    primary_data %>%
+      select(participant,Player_type_PD,Player_type_IPD),
+    by = "participant")
 
+df <- df %>%
+  mutate(Player_PD_recode = NA)
+df <- df %>%
+  mutate(
+    Player_type_PD_recode = case_when(
+      Player_type_PD == "Unconditional\nnon cooperator" ~ "0",
+      Player_type_PD == "Unconditional\ncooperator" ~ "1",
+      Player_type_PD == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_PD == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_PD == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_PD == "Undefined" ~ "5",
+      TRUE ~ Player_type_PD
+    )
+  )
+
+
+tbl_summary(
+  data = df,
+  by = part_1_selected_task_name,
+  include = c(Player_type_IPD,Player_type_PD_recode),
+  missing = "no"
+) %>%
+  add_overall() %>%
+  add_p(
+    test = list(
+      c(Player_type_IPD,Player_type_PD_recode) ~ "oneway.test"
+    ),
+    test.args = list(
+      c(Player_type_IPD,Player_type_PD_recode) ~ list(var.equal = TRUE)
+    )
+  ) %>%
+  bold_p()
