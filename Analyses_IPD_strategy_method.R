@@ -3,27 +3,20 @@ library(readxl)
 library(dplyr)
 library(Hmisc)
 library(ggplot2)
-install.packages("ggstats")
 library(ggstats)
 library(ggsci)  
 library(viridis)
-install.packages(("ggtext"))
 library(ggtext)
 library(broom)
-install.packages("exact2x2")
 library(exact2x2)
-install.packages("TOSTER")
 library(TOSTER)
 library(Exact)
 library(viridis)
-install.packages("statpsych")
 library(statpsych)
 library(tidyr)
-install.packages("pwr")
 library(pwr)
 library(tidyverse)
 library(modelsummary)
-install.packages(("plotly"))
 library(plotly)
 
 
@@ -2005,7 +1998,7 @@ tokens_ipd_unc_3D <- plot_ly(
   z = ~value_outgroup,
   type = "scatter3d",
   mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  color = ~factor(value_outgroup),
   line = list(width = 4)
 ) %>%
   layout(
@@ -2059,7 +2052,7 @@ tokens_ipd_uc_3D <- plot_ly(
   z = ~value_outgroup,
   type = "scatter3d",
   mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  color = ~factor(value_outgroup),
   line = list(width = 4)
 ) %>%
   layout(
@@ -2108,7 +2101,7 @@ tokens_ipd_ioCC_3D <- plot_ly(
   z = ~value_outgroup,
   type = "scatter3d",
   mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  color = ~factor(value_outgroup),
   line = list(width = 4)
 ) %>%
   layout(
@@ -2157,7 +2150,7 @@ tokens_ipd_iCC_3D <- plot_ly(
   z = ~value_outgroup,
   type = "scatter3d",
   mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  color = ~factor(value_outgroup),
   line = list(width = 4)
 ) %>%
   layout(
@@ -2206,7 +2199,7 @@ tokens_ipd_oCC_3D <- plot_ly(
   z = ~value_outgroup,
   type = "scatter3d",
   mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  color = ~factor(value_outgroup),
   line = list(width = 4)
 ) %>%
   layout(
@@ -2255,7 +2248,7 @@ tokens_ipd_nc_3D <- plot_ly(
   z = ~value_outgroup,
   type = "scatter3d",
   mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  color = ~factor(value_outgroup),
   line = list(width = 4)
 ) %>%
   layout(
@@ -2330,28 +2323,35 @@ df <- df %>%
 df <- df %>%
   mutate(
     Player_type_PD_recode = case_when(
-      Player_type_PD == "Unconditional\nnon cooperator" ~ "0",
-      Player_type_PD == "Unconditional\ncooperator" ~ "1",
-      Player_type_PD == "Only Ingroup\nconditional cooperator" ~ "2",
-      Player_type_PD == "Only Outgroup\nconditional cooperator" ~ "3",
-      Player_type_PD == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
-      Player_type_PD == "Undefined" ~ "5",
-      TRUE ~ Player_type_PD
+      Player_type_PD.y == "Unconditional\nnon cooperator" ~ "0",
+      Player_type_PD.y == "Unconditional\ncooperator" ~ "1",
+      Player_type_PD.y == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_PD.y == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_PD.y == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_PD.y == "Undefined" ~ "5",
+      TRUE ~ Player_type_PD.y
     )
   )
 
 df <- df %>%
   mutate(
     Player_type_IPD_recode = case_when(
-      Player_type_IPD == "Unconditional\nnon cooperator" ~ "0",
-      Player_type_IPD == "Unconditional\ncooperator" ~ "1",
-      Player_type_IPD == "Only Ingroup\nconditional cooperator" ~ "2",
-      Player_type_IPD == "Only Outgroup\nconditional cooperator" ~ "3",
-      Player_type_IPD == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
-      Player_type_IPD == "Undefined" ~ "5",
-      TRUE ~ Player_type_IPD
+      Player_type_IPD.y == "Unconditional\nnon cooperator" ~ "0",
+      Player_type_IPD.y == "Unconditional\ncooperator" ~ "1",
+      Player_type_IPD.y == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_IPD.y == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_IPD.y == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_IPD.y == "Undefined" ~ "5",
+      TRUE ~ Player_type_IPD.y
     )
   )
+
+##Effet d'ordre profil des joueurs ----
+df$Player_type_IPD_recode <- as.factor(df$Player_type_IPD_recode)
+df$Player_type_PD_recode <- as.factor(df$Player_type_PD_recode)
+levels(df$Player_type_IPD_recode)
+levels(df$Player_type_PD_recode)
+
 
 tbl_summary(
   data = df,
@@ -2362,10 +2362,27 @@ tbl_summary(
   add_overall() %>%
   add_p(
     test = list(
-      c(Player_type_IPD,Player_type_PD_recode) ~ "oneway.test"
+      c(Player_type_IPD_recode,Player_type_PD_recode) ~ "chisq.test"
     ),
     test.args = list(
-      c(Player_type_IPD,Player_type_PD_recode) ~ list(var.equal = TRUE)
+      c(Player_type_IPD_recode,Player_type_PD_recode) ~ list(simulate.p.value = TRUE)
     )
   ) %>%
   bold_p()
+
+##Effet d'ordre sur le nombre de jetons investis inconditionnellement dans IPD ----
+tbl_summary(
+  data = df,
+  by = part_1_selected_task_name,
+  include = ipd_uncond,
+  missing = "no"
+) %>%
+  add_overall() %>%
+  add_p(
+    test = list(
+      ipd_uncond ~ "wilcox.test"
+    )
+  ) %>%
+  bold_p()
+
+
