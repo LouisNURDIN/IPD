@@ -1805,13 +1805,30 @@ tokens_pd_ioCC_3D <- plot_ly(
   y = y_vals_iocc_pd,
   z = z_matrix_iocc_pd,
   type = "surface",
-  colorscale = "Blues"
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
 print(tokens_pd_ioCC_3D)
