@@ -1671,22 +1671,33 @@ df_plot_pd_unc_3D <- df_plot_pd_unc_3D %>%
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
   )
 
+x_vals <- sort(unique(df_plot_pd_unc_3D$value_ingroup))
+y_vals <- sort(unique(df_plot_pd_unc_3D$value_outgroup))
+
+df_wide <- df_plot_pd_unc_3D %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix <- as.matrix(df_wide[,-1])
+
 
 tokens_pd_unc_3D <- plot_ly(
-  df_plot_pd_unc_3D %>% arrange(value_ingroup, value_outgroup),
-  x = ~value_ingroup,
-  y = ~value,
-  z = ~value_outgroup,
-  type = "scatter3d",
-  mode = "lines+markers",
-  color = ~factor(value_ingroup),
-  line = list(width = 4)
+  x = x_vals,
+  y = y_vals,
+  z = z_matrix,
+  type = "surface",
+  colorscale = "Blues"
 ) %>%
   layout(
     scene = list(
       xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
       yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe UNC", range = c(0, 4))
+      zaxis = list(title = "Moyenne des jetons investis", range = c(0, 4))
     )
   )
 print(tokens_pd_unc_3D)
@@ -1732,8 +1743,9 @@ tokens_pd_uc_3D <- plot_ly(
   y = ~value,
   z = ~value_outgroup,
   type = "scatter3d",
-  mode = "lines+markers",
-  color = ~factor(value_ingroup),
+  mode = "markers",
+  color = ~value,
+  colors = "Blues",
   line = list(width = 4)
 ) %>%
   layout(
@@ -1774,22 +1786,32 @@ df_plot_pd_ioCC_3D <- df_plot_pd_ioCC_3D %>%
   mutate(
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
 
+x_vals_iocc_pd <- sort(unique(df_plot_pd_ioCC_3D$value_ingroup))
+y_vals_iocc_pd <- sort(unique(df_plot_pd_ioCC_3D$value_outgroup))
+
+df_wide <- df_plot_pd_ioCC_3D %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix_iocc_pd <- as.matrix(df_wide[,-1])
 
 tokens_pd_ioCC_3D <- plot_ly(
-  df_plot_pd_ioCC_3D %>% arrange(value_ingroup, value_outgroup),
-  x = ~value_ingroup,
-  y = ~value,
-  z = ~value_outgroup,
-  type = "scatter3d",
-  mode = "lines+markers",
-  color = ~factor(value_ingroup),
-  line = list(width = 4)
+  x = x_vals_iocc_pd,
+  y = y_vals_iocc_pd,
+  z = z_matrix_iocc_pd,
+  type = "surface",
+  colorscale = "Blues"
 ) %>%
   layout(
     scene = list(
       xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
       yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe ioCC", range = c(0, 4))
+      zaxis = list(title = "Moyenne des jetons investis", range = c(0, 4))
     )
   )
 print(tokens_pd_ioCC_3D)
@@ -2371,18 +2393,24 @@ tbl_summary(
   bold_p()
 
 ##Effet d'ordre sur le nombre de jetons investis inconditionnellement dans IPD ----
+class(df$ipd_uncond)
+is.numeric(df$ipd_uncond)
 tbl_summary(
   data = df,
   by = part_1_selected_task_name,
   include = ipd_uncond,
-  missing = "no"
-) %>%
+  type = list(ipd_uncond ~ "continuous"),
+  digits = list(
+    ipd_uncond ~ 2
+  ),
+  missing = "no") %>%
   add_overall() %>%
   add_p(
     test = list(
-      ipd_uncond ~ "wilcox.test"
-    )
+      ipd_uncond ~ "wilcox.test")
   ) %>%
   bold_p()
+
+
 
 
