@@ -1567,23 +1567,28 @@ z_matrix_pd_all <- as.matrix(df_wide_pd_all[,-1])
 tokens_pd_all_3D <- plot_ly(
   x = x_vals_pd_all,
   y = y_vals_pd_all,
-  z = z_matrix_pd_all,
+  z = t(z_matrix_pd_all),
   type = "surface",
   colorscale = "Blues",
   cmin = 0,
-  cmax = 4
+  cmax = 4,
+  colorbar = list(
+    tickmode = "array",
+    tickvals = 0:4,
+    ticktext = 0:4
+  )
 ) %>%
   layout(
     title = "Surface des investissements moyens dans le jeu PD",
     scene = list(
       xaxis = list(
-        title = "Jetons ingroup (0–4)",
+        title = "Jetons ingroup",
         range = c(0, 4),
         tickmode = "array",
         tickvals = 0:4
       ),
       yaxis = list(
-        title = "Jetons outgroup (0–4)",
+        title = "Jetons outgroup",
         range = c(0, 4),
         tickmode = "array",
         tickvals = 0:4
@@ -1652,23 +1657,28 @@ z_matrix_ipd_all <- as.matrix(df_wide_ipd_all[,-1])
 tokens_ipd_all_3D <- plot_ly(
   x = x_vals_ipd_all,
   y = y_vals_ipd_all,
-  z = z_matrix_ipd_all,
+  z = t(z_matrix_ipd_all),
   type = "surface",
   colorscale = "Blues",
   cmin = 0,
-  cmax = 4
+  cmax = 4,
+  colorbar = list(
+    tickmode = "array",
+    tickvals = 0:4,
+    ticktext = 0:4
+  )
 ) %>%
   layout(
     title = "Surface des investissements moyens dans le jeu IPD",
     scene = list(
       xaxis = list(
-        title = "Jetons ingroup (0–4)",
+        title = "Jetons ingroup",
         range = c(0, 4),
         tickmode = "array",
         tickvals = 0:4
       ),
       yaxis = list(
-        title = "Jetons outgroup (0–4)",
+        title = "Jetons outgroup",
         range = c(0, 4),
         tickmode = "array",
         tickvals = 0:4
