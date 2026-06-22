@@ -644,34 +644,40 @@ df_alluvial_prop <- df_alluvial %>%
   group_by(Player_type_PD) %>%
   mutate(
     total_PD = sum(n),
-    prop = n / total_PD *100
+    prop = n / total_PD * 100
   ) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(
+    total_all = sum(n),
+    prop_all = n / total_all * 100
+  )
 
 heatmap_prop <- ggplot(
   df_alluvial_prop,
   aes(
     x = Player_type_PD,
     y = Player_type_IPD,
-    fill = prop
+    fill = prop_all
   )
 ) +
   geom_tile(color = "white") +
-  scale_fill_gradient(
-    low = "white",
-    high = "red"
-  ) +
+  
+  geom_text(aes(label = round(prop_all, 1))) +
+  
   scale_fill_gradient(
     low = "white",
     high = "red",
-    breaks = c(0,25,50,75,100)
-  )
-theme_minimal() +
+    breaks = c(0, 5, 10, 20, 25)
+  ) +
+  
+  theme_minimal() +
   labs(
     x = "Type de joueur dans PD",
     y = "Type de joueur dans IPD",
-    fill = "% de joueurs au sein du groupe"
+    fill = "% de joueurs (ensemble de l'échantillon)"
   )
+
+print(heatmap_prop)
 print(heatmap_prop)
 ggsave(
   filename = "results/figures/heatmap pd_ipd proportion.png",
@@ -1556,7 +1562,7 @@ df_wide_pd_all <- df_plot_pd_3D_all %>%
   arrange(value_ingroup)
 
 z_matrix_pd_all <- as.matrix(df_wide_pd_all[,-1])
-print(df_wide_ipd_all)
+
 
 tokens_pd_all_3D <- plot_ly(
   x = x_vals_pd_all,
@@ -1640,7 +1646,7 @@ df_wide_ipd_all <- df_plot_ipd_3D_all %>%
   ) %>%
   arrange(value_ingroup)
 
-z_matrix_ipd_all <- as.matrix(df_wide[,-1])
+z_matrix_ipd_all <- as.matrix(df_wide_ipd_all[,-1])
 
 
 tokens_ipd_all_3D <- plot_ly(
@@ -1740,7 +1746,12 @@ plot_surface_pd <- function(data, group_value, title = "") {
     type = "surface",
     colorscale = "Blues",
     cmin = 0,
-    cmax = 4
+    cmax = 4,
+    colorbar = list(
+      tickmode = "array",
+      tickvals = 0:4,
+      ticktext = 0:4
+    )
   ) %>%
     layout(
       title = title,
@@ -1818,7 +1829,12 @@ plot_surface_ipd <- function(data, group_value, title = "") {
     type = "surface",
     colorscale = "Blues",
     cmin = 0,
-    cmax = 4
+    cmax = 4,
+    colorbar = list(
+      tickmode = "array",
+      tickvals = 0:4,
+      ticktext = 0:4
+    )
   ) %>%
     layout(
       title = title,
@@ -2642,6 +2658,9 @@ htmlwidgets::saveWidget(
   
 #Balance check ----
   ##Balance check 1ere partie
+names(df)
+df$diplome <- factor(df$diplome)
+df$discipline <- factor(df$discipline)
 library(gtsummary)
 tbl_summary(
   data = df,
@@ -2706,12 +2725,12 @@ df <- df %>%
   mutate(
     Player_type_IPD_recode = case_when(
       Player_type_IPD.y == "Unconditional\nnon cooperator" ~ "0",
-      Player_type_IPD.y == "Unconditional\ncooperator" ~ "1",
-      Player_type_IPD.y == "Only Ingroup\nconditional cooperator" ~ "2",
-      Player_type_IPD.y == "Only Outgroup\nconditional cooperator" ~ "3",
-      Player_type_IPD.y == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
-      Player_type_IPD.y == "Undefined" ~ "5",
-      TRUE ~ Player_type_IPD.y
+      Player_type_IPD.y  == "Unconditional\ncooperator" ~ "1",
+      Player_type_IPD.y  == "Only Ingroup\nconditional cooperator" ~ "2",
+      Player_type_IPD.y  == "Only Outgroup\nconditional cooperator" ~ "3",
+      Player_type_IPD.y  == "Ingroup and Outgroup\nconditional cooperator" ~ "4",
+      Player_type_IPD.y  == "Undefined" ~ "5",
+      TRUE ~ Player_type_IPD.y 
     )
   )
 
@@ -2726,7 +2745,11 @@ tbl_summary(
   data = df,
   by = part_1_selected_task_name,
   include = c(Player_type_IPD_recode,Player_type_PD_recode),
-  missing = "no"
+  missing = "no",
+  label = list(
+    Player_type_IPD_recode ~ "Profil IPD",
+    Player_type_PD_recode ~ "Profil PD"
+  )
 ) %>%
   add_overall() %>%
   add_p(
