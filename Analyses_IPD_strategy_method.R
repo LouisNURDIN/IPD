@@ -1511,7 +1511,6 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
  (tokens_pd_in_all | tokens_pd_out_all) /
    (tokens_ipd_in_all | tokens_ipd_out_all)
  
- 
 
  #Graphiques 3D ----
  ##pd 3D all ----
@@ -1543,28 +1542,60 @@ df_plot_pd_3D_all <- df_plot_pd_3D_all %>%
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
   )
 
-tokens_PD_all_3D <- plot_ly(
-  df_plot_pd_3D_all %>% arrange(value_ingroup, value_outgroup),
-  x = ~value_ingroup,
-  y = ~value,
-  z = ~value_outgroup,
-  type = "scatter3d",
-  mode = "lines+markers",
-  color = ~factor(value_ingroup),
-  line = list(width = 4)
+x_vals_pd_all <- sort(unique(df_plot_pd_3D_all$value_ingroup))
+y_vals_pd_all <- sort(unique(df_plot_pd_3D_all$value_outgroup))
+
+
+df_wide_pd_all <- df_plot_pd_3D_all %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix_pd_all <- as.matrix(df_wide_pd_all[,-1])
+print(df_wide_ipd_all)
+
+tokens_pd_all_3D <- plot_ly(
+  x = x_vals_pd_all,
+  y = y_vals_pd_all,
+  z = z_matrix_pd_all,
+  type = "surface",
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
+    title = "Surface des investissements moyens dans le jeu PD",
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis (PD)", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
-print(tokens_PD_all_3D)
+print(tokens_pd_all_3D)
 htmlwidgets::saveWidget(
-  tokens_PD_all_3D,
+  tokens_pd_all_3D,
   "results/figures/mean_tokens_3D_pd_all.html"
 )
+
 
 
 ##ipd all 3D ----
@@ -1596,25 +1627,57 @@ df_plot_ipd_3D_all <- df_plot_ipd_3D_all %>%
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
   )
 
+x_vals_ipd_all <- sort(unique(df_plot_ipd_3D_all$value_ingroup))
+y_vals_ipd_all <- sort(unique(df_plot_ipd_3D_all$value_outgroup))
 
-tokens_IPD_all_3D <- plot_ly(
-  df_plot_ipd_3D_all,
-  x = ~value_ingroup,
-  y = ~value_outgroup,
-  z = ~value,
-  type = "scatter3d",
-  mode = "markers",
-  color = ~value_ingroup
+
+df_wide_ipd_all <- df_plot_ipd_3D_all %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix_ipd_all <- as.matrix(df_wide[,-1])
+
+
+tokens_ipd_all_3D <- plot_ly(
+  x = x_vals_ipd_all,
+  y = y_vals_ipd_all,
+  z = z_matrix_ipd_all,
+  type = "surface",
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
+    title = "Surface des investissements moyens dans le jeu IPD",
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis par l'ensemble des joueurs (IPD)", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
+print(tokens_ipd_all_3D)
 htmlwidgets::saveWidget(
-  tokens_PD_all_3D,
+  tokens_ipd_all_3D,
   "results/figures/mean_tokens_3D_ipd_all.html"
 )
 
@@ -1641,6 +1704,164 @@ df <- df %>%
     )
   )
 unique(df$Player_type_PD)
+
+
+#Graphique 3D PD pipeline ----
+##Graphique 3D PD groupes ---- 
+plot_surface_pd <- function(data, group_value, title = "") {
+  
+  df_plot <- data %>%
+    filter(Player_type_PD == group_value) %>%
+    summarise(across(starts_with("pd_in"), ~ mean(.x, na.rm = TRUE))) %>%
+    pivot_longer(
+      cols = starts_with("pd_in"),
+      names_to = "variable",
+      values_to = "value"
+    ) %>%
+    mutate(
+      value_ingroup = as.numeric(str_extract(variable, "(?<=pd_in)\\d")),
+      value_outgroup = as.numeric(str_extract(variable, "(?<=out)\\d"))
+    )
+  
+  grid <- df_plot %>%
+    group_by(value_ingroup, value_outgroup) %>%
+    summarise(value = mean(value), .groups = "drop") %>%
+    pivot_wider(names_from = value_outgroup, values_from = value) %>%
+    arrange(value_ingroup)
+  
+  x_vals <- sort(unique(df_plot$value_ingroup))
+  y_vals <- sort(unique(df_plot$value_outgroup))
+  z_matrix <- as.matrix(grid[,-1])
+  
+  plot_ly(
+    x = x_vals,
+    y = y_vals,
+    z = t(z_matrix),
+    type = "surface",
+    colorscale = "Blues",
+    cmin = 0,
+    cmax = 4
+  ) %>%
+    layout(
+      title = title,
+      scene = list(
+        xaxis = list(title = "Ingroup (0–4)", tickvals = 0:4),
+        yaxis = list(title = "Outgroup (0–4)", tickvals = 0:4),
+        zaxis = list(title = "Mean tokens", tickvals = 0:4)
+      )
+    )
+}
+types <- unique(df$Player_type_PD)
+
+plots <- lapply(types, function(t) {
+  plot_surface_pd(df, t, title = t)
+})
+
+#Afficher les graphiques tracés ----
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+plots[[5]]
+plots[[6]]
+
+library(htmlwidgets)
+names_plots <- c(
+  "iCC_PD",
+  "nc_PD",
+  "oCC_PD",
+  "ioCC_PD",
+  "UNC_PD",
+  "UC_PD"
+)
+
+for(i in seq_along(plots)){
+  saveWidget(
+    plots[[i]],
+    file = paste0("results/figures/figures 3D", names_plots[i], ".html"),
+    selfcontained = TRUE
+  )
+}
+
+
+#3D IPD pipeline ----
+##Graphique 3D IPD groupes ---- 
+plot_surface_ipd <- function(data, group_value, title = "") {
+  
+  df_plot_ipd <- data %>%
+    filter(Player_type_IPD == group_value) %>%
+    summarise(across(starts_with("ipd_in"), ~ mean(.x, na.rm = TRUE))) %>%
+    pivot_longer(
+      cols = starts_with("ipd_in"),
+      names_to = "variable",
+      values_to = "value"
+    ) %>%
+    mutate(
+      value_ingroup = as.numeric(str_extract(variable, "(?<=ipd_in)\\d")),
+      value_outgroup = as.numeric(str_extract(variable, "(?<=out)\\d"))
+    )
+  
+  grid <- df_plot_ipd %>%
+    group_by(value_ingroup, value_outgroup) %>%
+    summarise(value = mean(value), .groups = "drop") %>%
+    pivot_wider(names_from = value_outgroup, values_from = value) %>%
+    arrange(value_ingroup)
+  
+  x_vals_ipd <- sort(unique(df_plot_ipd$value_ingroup))
+  y_vals_ipd <- sort(unique(df_plot_ipd$value_outgroup))
+  z_matrix_ipd <- as.matrix(grid[,-1])
+  
+  plot_ly(
+    x = x_vals_ipd,
+    y = y_vals_ipd,
+    z = t(z_matrix_ipd),
+    type = "surface",
+    colorscale = "Blues",
+    cmin = 0,
+    cmax = 4
+  ) %>%
+    layout(
+      title = title,
+      scene = list(
+        xaxis = list(title = "Ingroup (0–4)", tickvals = 0:4),
+        yaxis = list(title = "Outgroup (0–4)", tickvals = 0:4),
+        zaxis = list(title = "Mean tokens", tickvals = 0:4)
+      )
+    )
+}
+types <- unique(df$Player_type_IPD)
+
+plots <- lapply(types, function(t) {
+  plot_surface_ipd(df, t, title = t)
+})
+
+###Afficher les graphiques tracés ----
+plots[[1]] #iCC - IPD 
+plots[[2]] #n.c - IPD
+plots[[3]] #oCC - IPD
+plots[[4]] #ioCC - IPD
+plots[[5]] #UNC - IPD
+plots[[6]] #UC - IPD
+library(htmlwidgets)
+names_plots <- c(
+  "iCC_IPD",
+  "nc_IPD",
+  "oCC_IPD",
+  "ioCC_IPD",
+  "UNC_IPD",
+  "UC_IPD"
+)
+
+for(i in seq_along(plots)){
+  saveWidget(
+    plots[[i]],
+    file = paste0("results/figures/figures 3D", names_plots[i], ".html"),
+    selfcontained = TRUE
+  )
+}
+
+
+#Graphique 3D individuel sans pipeline ----
 ##PD - UNC ----
 df_plot_pd_unc_3D <- df %>%
   filter(Player_type_PD == "Unconditional\nnon cooperator")%>%
@@ -1671,8 +1892,9 @@ df_plot_pd_unc_3D <- df_plot_pd_unc_3D %>%
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d"))
   )
 
-x_vals <- sort(unique(df_plot_pd_unc_3D$value_ingroup))
-y_vals <- sort(unique(df_plot_pd_unc_3D$value_outgroup))
+x_vals_unc_pd <- sort(unique(df_plot_pd_unc_3D$value_ingroup))
+y_vals_unc_pd <- sort(unique(df_plot_pd_unc_3D$value_outgroup))
+
 
 df_wide <- df_plot_pd_unc_3D %>%
   group_by(value_ingroup, value_outgroup) %>%
@@ -1683,21 +1905,38 @@ df_wide <- df_plot_pd_unc_3D %>%
   ) %>%
   arrange(value_ingroup)
 
-z_matrix <- as.matrix(df_wide[,-1])
+z_matrix_unc_pd <- as.matrix(df_wide[,-1])
 
 
 tokens_pd_unc_3D <- plot_ly(
-  x = x_vals,
-  y = y_vals,
-  z = z_matrix,
+  x = x_vals_unc_pd,
+  y = y_vals_unc_pd,
+  z = z_matrix_unc_pd,
   type = "surface",
-  colorscale = "Blues"
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
 print(tokens_pd_unc_3D)
@@ -1705,6 +1944,7 @@ htmlwidgets::saveWidget(
   tokens_pd_unc_3D,
   "results/figures/mean_tokens_pd_unc_3D.html"
 )
+
 
 ##PD - UC ----
 df_plot_pd_uc_3D <- df %>%
@@ -1737,22 +1977,51 @@ df_plot_pd_uc_3D <- df_plot_pd_uc_3D %>%
   )
 
 
+x_vals_uc_pd <- sort(unique(df_plot_pd_uc_3D$value_ingroup))
+y_vals_uc_pd <- sort(unique(df_plot_pd_uc_3D$value_outgroup))
+
+
+df_wide_uc_pd <- df_plot_pd_uc_3D %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix_uc_pd <- as.matrix(df_wide_uc_pd[,-1])
+
+
 tokens_pd_uc_3D <- plot_ly(
-  df_plot_pd_uc_3D %>% arrange(value_ingroup, value_outgroup),
-  x = ~value_ingroup,
-  y = ~value,
-  z = ~value_outgroup,
-  type = "scatter3d",
-  mode = "markers",
-  color = ~value,
-  colors = "Blues",
-  line = list(width = 4)
+  x = x_vals_uc_pd,
+  y = y_vals_uc_pd,
+  z = z_matrix_uc_pd,
+  type = "surface",
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe UC", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
 print(tokens_pd_uc_3D)
@@ -1862,22 +2131,50 @@ df_plot_pd_iCC_3D <- df_plot_pd_iCC_3D %>%
   mutate(
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
 
+x_vals_icc_pd <- sort(unique(df_plot_pd_iCC_3D$value_ingroup))
+y_vals_icc_pd <- sort(unique(df_plot_pd_iCC_3D$value_outgroup))
+
+
+df_wide_icc_pd <- df_plot_pd_iCC_3D %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix_icc_pd <- as.matrix(df_wide_icc_pd[,-1])
 
 tokens_pd_iCC_3D <- plot_ly(
-  df_plot_pd_iCC_3D %>% arrange(value_ingroup, value_outgroup),
-  x = ~value_ingroup,
-  y = ~value,
-  z = ~value_outgroup,
-  type = "scatter3d",
-  mode = "lines+markers",
-  color = ~factor(value_ingroup),
-  line = list(width = 4)
+  x = x_vals_icc_pd,
+  y = y_vals_icc_pd,
+  z = z_matrix_icc_pd,
+  type = "surface",
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe iCC", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
 print(tokens_pd_iCC_3D)
@@ -1911,22 +2208,51 @@ df_plot_pd_oCC_3D <- df_plot_pd_oCC_3D %>%
   mutate(
     value_outgroup = as.numeric(stringr::str_extract(variable, "(?<=out)\\d")))
 
+x_vals_occ_pd <- sort(unique(df_plot_pd_oCC_3D$value_ingroup))
+y_vals_occ_pd <- sort(unique(df_plot_pd_oCC_3D$value_outgroup))
+
+
+df_wide_occ_pd <- df_plot_pd_oCC_3D %>%
+  group_by(value_ingroup, value_outgroup) %>%
+  summarise(value = mean(value), .groups = "drop") %>%
+  pivot_wider(
+    names_from = value_outgroup,
+    values_from = value
+  ) %>%
+  arrange(value_ingroup)
+
+z_matrix_occ_pd <- as.matrix(df_wide_occ_pd[,-1])
+
 
 tokens_pd_oCC_3D <- plot_ly(
-  df_plot_pd_oCC_3D %>% arrange(value_ingroup, value_outgroup),
-  x = ~value_ingroup,
-  y = ~value,
-  z = ~value_outgroup,
-  type = "scatter3d",
-  mode = "lines+markers",
-  color = ~factor(value_ingroup),
-  line = list(width = 4)
+  x = x_vals_occ_pd,
+  y = y_vals_occ_pd,
+  z = z_matrix_occ_pd,
+  type = "surface",
+  colorscale = "Blues",
+  cmin = 0,
+  cmax = 4
 ) %>%
   layout(
     scene = list(
-      xaxis = list(title = "Jetons ingroup (0–4)", range = c(0, 4)),
-      yaxis = list(title = "Jetons outgroup (0–4)", range = c(0, 4)),
-      zaxis = list(title = "Moyenne des jetons investis dans le jeu PD par le groupe oCC", range = c(0, 4))
+      xaxis = list(
+        title = "Jetons ingroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      yaxis = list(
+        title = "Jetons outgroup (0–4)",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      ),
+      zaxis = list(
+        title = "Moyenne des jetons investis",
+        range = c(0, 4),
+        tickmode = "array",
+        tickvals = 0:4
+      )
     )
   )
 print(tokens_pd_oCC_3D)
@@ -2302,6 +2628,10 @@ htmlwidgets::saveWidget(
   tokens_pd_nc_3D,
   "results/figures/mean_tokens_ipd_nc_3D.html"
 )
+
+
+
+
 
 
 
