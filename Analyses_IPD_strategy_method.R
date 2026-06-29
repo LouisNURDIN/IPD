@@ -1607,7 +1607,41 @@ htmlwidgets::saveWidget(
   "results/figures/mean_tokens_3D_pd_all.html"
 )
 
+###Heatmap 3D PD all ----
+heatmap_3D_pd_all <- ggplot(
+  df_plot_pd_3D_all,
+  aes(
+    x = value_ingroup,
+    y = value_outgroup,
+    fill = value
+  )
+) +
+  geom_tile(color = "white") +
+  
+  geom_text(aes(label = round(value, 2))) +
+  
+  scale_fill_gradient(
+    low = "navy",
+    high = "lightblue",
+    breaks = c(0, 5, 10, 20, 25)
+  )+
+  
+  theme_minimal() +
+  labs(
+    title = "Nombre moyen de jetons investis dans le jeu PD en fonction des investissements ingroup et outgroup (tous les joueurs)",
+    x = "Jetons investis ingroup",
+    y = "Jetons investis outgroup",
+    fill = "Moyenne de jetons investis dans le jeu PD"
+  )
 
+print(heatmap_3D_pd_all)
+ggsave(
+  filename = "results/figures/heatmap jetons PD all players.png",
+  plot = heatmap_3D_pd_all,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
 
 ##ipd all 3D ----
 df_plot_ipd_3D_all <- df %>%
@@ -1696,6 +1730,44 @@ htmlwidgets::saveWidget(
   tokens_ipd_all_3D,
   "results/figures/mean_tokens_3D_ipd_all.html"
 )
+
+
+###Heatmap 3D all ----
+heatmap_3D_ipd_all <- ggplot(
+  df_plot_ipd_3D_all,
+  aes(
+    x = value_ingroup,
+    y = value_outgroup,
+    fill = value
+  )
+) +
+  geom_tile(color = "white") +
+  
+  geom_text(aes(label = round(value, 2))) +
+  
+  scale_fill_gradient(
+    low = "navy",
+    high = "lightblue",
+    breaks = c(0, 5, 10, 20, 25)
+  )+
+  
+  theme_minimal() +
+  labs(
+    title = "Nombre moyen de jetons investis dans le jeu IPD en fonction des investissements ingroup et outgroup (tous les joueurs)",
+    x = "Jetons investis ingroup",
+    y = "Jetons investis outgroup",
+    fill = "Moyenne de jetons investis dans le jeu IPD"
+  )
+
+print(heatmap_3D_ipd_all)
+ggsave(
+  filename = "results/figures/heatmap jetons IPD all players.png",
+  plot = heatmap_3D_ipd_all,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
 
 #Graphique 3D PD - Groups ----
 
