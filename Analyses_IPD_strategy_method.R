@@ -572,7 +572,6 @@ ggsave(
 
 
 #test diagramme alluvial ----
-install.packages("ggalluvial")
 library(ggalluvial)
 
 df_alluvial <- primary_data %>%
@@ -1623,9 +1622,8 @@ heatmap_3D_pd_all <- ggplot(
   scale_fill_gradient(
     low = "navy",
     high = "lightblue",
-    breaks = c(0, 5, 10, 20, 25)
+    breaks = c(0, 1, 2, 3, 4)
   )+
-  
   theme_minimal() +
   labs(
     title = "Nombre moyen de jetons investis dans le jeu PD en fonction des investissements ingroup et outgroup (tous les joueurs)",
@@ -1748,7 +1746,7 @@ heatmap_3D_ipd_all <- ggplot(
   scale_fill_gradient(
     low = "navy",
     high = "lightblue",
-    breaks = c(0, 5, 10, 20, 25)
+    breaks = c(0, 1, 1.75)
   )+
   
   theme_minimal() +
