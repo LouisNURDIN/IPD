@@ -427,8 +427,8 @@ df_long <- df_long %>%
 df_long$Unconditional_non_cooperator <- "No"
 df_long$Unconditional_non_cooperator[df_long$sum_decision==0] <- "Unconditional non cooperator"
 
-describe(df_long$Unconditional_non_cooperator)
-describe(df_long$sum_decision)
+Hmisc::describe(df_long$Unconditional_non_cooperator)
+Hmisc::describe(df_long$sum_decision)
 
 
 # # Unconditional cooperator 
@@ -441,9 +441,9 @@ df_long <- df_long %>%
 df_long$Unconditional_cooperator <- "No"
 df_long$Unconditional_cooperator[df_long$mean_decision!=0 & df_long$sd_decision ==0] <- "Unconditional cooperator"
 
-describe(df_long$Unconditional_cooperator)
-describe(df_long$sd_decision)
-describe(df_long$mean_decision)
+Hmisc::describe(df_long$Unconditional_cooperator)
+Hmisc::describe(df_long$sd_decision)
+Hmisc::describe(df_long$mean_decision)
 
 
 # # Ingroup conditional cooperator
@@ -458,7 +458,7 @@ df_long <- df_long %>%
   group_by(subject) %>% 
   mutate(mean_cor_decision_ingroup_peroutgroup = mean(cor_decision_ingroup_peroutgroup))
 
-describe(df_long$cor_decision_ingroup_peroutgroup)
+Hmisc::describe(df_long$cor_decision_ingroup_peroutgroup)
 
 df_long$Ingroupconditional <- "No"
 df_long$Ingroupconditional[df_long$mean_cor_decision_ingroup_peroutgroup>=0.5] <- "Ingroup conditional cooperator"
@@ -470,7 +470,7 @@ df_long <- df_long %>%
   group_by(subject, ingroup) %>% 
   mutate(sum_decision_peringroup = sum(decision))
 
-describe(df_long$sum_decision_peringroup)
+Hmisc::describe(df_long$sum_decision_peringroup)
 
 df_long <- df_long[order(df_long$subject, df_long$ingroup),]
 
@@ -478,7 +478,7 @@ df_long <- df_long %>%
   group_by(subject) %>% 
   mutate(min_varia_lag_ingroup = min(sum_decision_peringroup-lag(sum_decision_peringroup), na.rm=TRUE))
 
-describe(df_long$min_varia_lag_ingroup)
+Hmisc::describe(df_long$min_varia_lag_ingroup)
 
 df_long <- df_long[order(df_long$subject, df_long$ingroup),]
 
@@ -486,11 +486,11 @@ df_long <- df_long %>%
   group_by(subject) %>% 
   mutate(max_varia_lag_ingroup = max(sum_decision_peringroup-lag(sum_decision_peringroup), na.rm=TRUE))
 
-describe(df_long$max_varia_lag_ingroup)
+Hmisc::describe(df_long$max_varia_lag_ingroup)
 
 df_long$Ingroupconditional[df_long$min_varia_lag_ingroup>=0&df_long$max_varia_lag_ingroup>0] <- "Ingroup conditional cooperator"
 
-describe(df_long$Ingroupconditional)
+Hmisc::describe(df_long$Ingroupconditional)
 
 
 
@@ -506,7 +506,7 @@ df_long <- df_long %>%
   group_by(subject) %>% 
   mutate(mean_cor_decision_outgroup_peringroup = mean(cor_decision_outgroup_peringroup))
 
-describe(df_long$cor_decision_outgroup_peringroup)
+Hmisc::describe(df_long$cor_decision_outgroup_peringroup)
 
 df_long$Outgroupconditional <- "No"
 df_long$Outgroupconditional[df_long$mean_cor_decision_outgroup_peringroup>=0.5] <- "Outgroup conditional cooperator"
@@ -518,7 +518,7 @@ df_long <- df_long %>%
   group_by(subject, outgroup) %>% 
   mutate(sum_decision_peroutgroup = sum(decision))
 
-describe(df_long$sum_decision_peroutgroup)
+Hmisc::describe(df_long$sum_decision_peroutgroup)
 
 df_long <- df_long[order(df_long$subject, df_long$outgroup),]
 
@@ -526,7 +526,7 @@ df_long <- df_long %>%
   group_by(subject) %>% 
   mutate(min_varia_lag_outgroup = min(sum_decision_peroutgroup-lag(sum_decision_peroutgroup), na.rm=TRUE))
 
-describe(df_long$min_varia_lag_outgroup)
+Hmisc::describe(df_long$min_varia_lag_outgroup)
 
 df_long <- df_long[order(df_long$subject, df_long$outgroup),]
 
@@ -534,11 +534,11 @@ df_long <- df_long %>%
   group_by(subject) %>% 
   mutate(max_varia_lag_outgroup = max(sum_decision_peroutgroup-lag(sum_decision_peroutgroup), na.rm=TRUE))
 
-describe(df_long$max_varia_lag_outgroup)
+Hmisc::describe(df_long$max_varia_lag_outgroup)
 
 df_long$Outgroupconditional[df_long$min_varia_lag_outgroup>=0&df_long$max_varia_lag_outgroup>0] <- "Outgroup conditional cooperator"
 
-describe(df_long$Outgroupconditional)
+Hmisc::describe(df_long$Outgroupconditional)
 
 # # Get one single variable defining the type of the subject
 
@@ -549,7 +549,7 @@ df_long$Player_type[df_long$Outgroupconditional=="Outgroup conditional cooperato
 df_long$Player_type[df_long$Outgroupconditional=="No" & df_long$Ingroupconditional=="Ingroup conditional cooperator"] = "Only Ingroup\nconditional cooperator"
 df_long$Player_type[df_long$Outgroupconditional=="Outgroup conditional cooperator" & df_long$Ingroupconditional=="No"] = "Only Outgroup\nconditional cooperator"
 
-describe(df_long$Player_type)
+Hmisc::describe(df_long$Player_type)
 
 profil_type_plot <- df_long  %>% 
   ggplot(aes(group = Player_type, x=" "))+
@@ -917,12 +917,13 @@ tab_final_H4Ab <- tab_final_H4Ab %>%
 
 
 
-tab_raw <- broom::tidy(model_H4a)
-subset(tab_raw, term == "iSVO")
-subset(tab_raw, term == "gSVO")
-z <- estimate / std.error
-p_one_tailed <- 1 - pnorm(z)
-p_one_tailed <- pnorm(z)
+tt <- broom::tidy(model_H4a)
+# H4a : iSVO > 0 pour y.level 2 (OiCC) et 4 (ioCC)
+subset(tt, term=="iSVO" & y.level %in% c("2","4")) |>
+  transform(p_one_sided = 1 - pnorm(estimate/std.error))
+# H4b : gSVO < 0 pour y.level 3 (OoCC) et 4 (ioCC)
+subset(tt, term=="gSVO" & y.level %in% c("3","4")) |>
+  transform(p_one_sided = pnorm(estimate/std.error))
 
 
 #H4c ----
@@ -1055,6 +1056,11 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
     title = "Effet du nombre de jetons investis de manière inconditionnelle en l'absence de conflit sur le nombre de jetons investis de manière inconditionnelle en présence de conflit"
   )
 
+  
+  # Test sens inverse:
+  test <- t.test(df$ipd_uncond, df$pd_uncond,
+                 paired = TRUE,
+                 alternative = "less")
   
   
   #H5 bonus ----
