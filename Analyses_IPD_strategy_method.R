@@ -928,16 +928,20 @@ subset(tt, term=="gSVO" & y.level %in% c("3","4")) |>
 
 #H4c ----
 data_logit <- primary_data %>%
-  filter(Player_type_IPD %in% c("Only Ingroup\nconditional cooperator", 
-                                "Only Outgroup\nconditional cooperator")) %>%
-  mutate(
-    OiCC_binary = ifelse(Player_type_IPD == "Only Ingroup\nconditional cooperator", 1, 0))
+  filter(Player_type_IPD_recode %in% c("2","3")) %>%          # 2 = OiCC, 3 = OoCC
+  mutate(OiCC_binary = ifelse(Player_type_IPD_recode == "2", 1, 0))
 
-model_OiCC_vs_OoCC <- glm(
-  OiCC_binary ~ iSVO + gSVO,
-  data = data_logit,
-  family = binomial(link = "logit"))
+table(data_logit$OiCC_binary)   # sanity: doit contenir des 0 ET des 1
+
+model_OiCC_vs_OoCC <- glm(OiCC_binary ~ iSVO + gSVO,
+                          data = data_logit, family = binomial(link = "logit"))
 summary(model_OiCC_vs_OoCC)
+
+tc <- broom::tidy(model_OiCC_vs_OoCC)
+# H4c : OiCC plus altruiste ingroup (iSVO plus élevé) -> coef iSVO > 0
+subset(tc, term=="iSVO") |> transform(p_one_sided = 1 - pnorm(estimate/std.error))
+# H4d : OoCC plus parochial (gSVO plus bas) <=> OiCC gSVO plus élevé -> coef gSVO > 0
+subset(tc, term=="gSVO") |> transform(p_one_sided = 1 - pnorm(estimate/std.error))
 
 
 tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
