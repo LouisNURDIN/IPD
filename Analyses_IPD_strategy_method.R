@@ -2874,3 +2874,82 @@ tbl_summary(
 
 
 
+
+
+
+######################################################################
+#  Baseline proportions and IPD/PD correlation for H1, H2, H3 (lab data)
+#  ------------------------------------------------------------------
+#  Purpose: get a realistic sense of (i) the baseline proportion in the
+#  PD and (ii) the within-subject correlation r of individual binary
+#  outcomes across PD and IPD, for oCC (H1), iCC (H2) and UNC (H3).
+#  These are exactly the two ingredients that feed the McNemar power
+#  grid (mcnemar_cells(propPD, corr, diff) in the power-analysis script).
+#
+#  Run this AFTER building `primary_data` as in the main analysis script
+#  (i.e. after the block that creates oCC_PD/oCC_IPD, iCC_PD/iCC_IPD,
+#  UNC_PD/UNC_IPD via pivot_wider).
+######################################################################
+
+library(dplyr)
+
+# Phi coefficient = Pearson correlation on 0/1 indicators; this matches
+# the `corr` parameter used in the power-analysis formula.
+phi_coef <- function(x, y) {
+  x <- as.numeric(x); y <- as.numeric(y)
+  ok <- complete.cases(x, y)
+  cor(x[ok], y[ok])
+}
+
+summarize_outcome <- function(data, var_pd, var_ipd, label) {
+  x_pd  <- data[[var_pd]]
+  x_ipd <- data[[var_ipd]]
+  
+  tab <- table(PD = factor(x_pd, levels = c(FALSE, TRUE)),
+               IPD = factor(x_ipd, levels = c(FALSE, TRUE)))
+  
+  n      <- sum(tab)
+  p_pd   <- mean(x_pd, na.rm = TRUE)
+  p_ipd  <- mean(x_ipd, na.rm = TRUE)
+  diff   <- p_ipd - p_pd
+  r_phi  <- phi_coef(x_pd, x_ipd)
+  
+  # discordant cells, as used directly in the McNemar test
+  b <- tab["FALSE", "TRUE"]  # PD=No,  IPD=Yes -> gained under conflict
+  c <- tab["TRUE", "FALSE"]  # PD=Yes, IPD=No   -> lost under conflict
+  
+  cat("\n==== ", label, " ====\n", sep = "")
+  print(tab)
+  cat(sprintf("n = %d\n", n))
+  cat(sprintf("Baseline proportion in PD  (propPD) : %.3f\n", p_pd))
+  cat(sprintf("Proportion in IPD                    : %.3f\n", p_ipd))
+  cat(sprintf("Observed difference (IPD - PD)       : %+.3f\n", diff))
+  cat(sprintf("Within-subject correlation (phi, r)  : %.3f\n", r_phi))
+  cat(sprintf("Discordant cells: b (gained)=%d, c (lost)=%d\n", b, c))
+  
+  invisible(data.frame(hypothesis = label, n = n, propPD = p_pd, propIPD = p_ipd,
+                       diff = diff, corr = r_phi, b = b, c = c))
+}
+
+res_H1 <- summarize_outcome(primary_data, "oCC_PD", "oCC_IPD", "H1: oCC (outgroup conditional cooperator)")
+res_H2 <- summarize_outcome(primary_data, "iCC_PD", "iCC_IPD", "H2: iCC (ingroup conditional cooperator)")
+res_H3 <- summarize_outcome(primary_data, "UNC_PD", "UNC_IPD", "H3: UNC (unconditional non-cooperator)")
+
+# Combined summary table, handy to eyeball / paste into the power-analysis grid
+summary_table <- bind_rows(res_H1, res_H2, res_H3)
+print(summary_table)
+
+# --- Optional: overlay these observed points on the online power grid ------
+# Once you have summary_table, you can directly read the power (or required n)
+# implied by these lab-based propPD/corr values, e.g.:
+#
+#   source("IPD_strategy_power_analysis_lab_and_online.R")  # defines mcnemar_cells(), pwr.mcnemar()
+#   for (i in seq_len(nrow(summary_table))) {
+#     row <- summary_table[i, ]
+#     cc_ <- mcnemar_cells(row$propPD, row$corr, abs(row$diff))
+#     pw  <- pwr.mcnemar(cc_[["p10"]], cc_[["p01"]], n = 691, alpha = (0.05/3)*2)
+#     cat(sprintf("%s: achieved power at n=691 (using lab propPD/corr/diff) = %.3f\n",
+#         row$hypothesis, pw[["power"]]))
+#   }
+
+
