@@ -987,8 +987,8 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
   
   test
   tab_test <- data.frame(
-    mean_ipd = mean(df$ipd_uncond, na.rm = TRUE),
-    mean_pd  = mean(df$pd_uncond, na.rm = TRUE),
+    mean_tokens_uncond_ipd = mean(df$ipd_uncond, na.rm = TRUE),
+    mean_tokens_uncond_pd  = mean(df$pd_uncond, na.rm = TRUE),
     diff     = mean(df$ipd_uncond, na.rm = TRUE) - mean(df$pd_uncond, na.rm = TRUE),
     t_value  = test$statistic,
     df       = test$parameter,
@@ -997,6 +997,25 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
   
   tab_test
 
+  
+  
+  test_inverse <- t.test(df$pd_uncond, df$ipd_uncond,
+                 paired = TRUE,
+                 alternative = "greater")
+  
+  test_inverse
+  tab_test_inverse <- data.frame(
+    mean_tokens_uncond_pd = mean(df$pd_uncond, na.rm = TRUE),
+    mean_tokens_uncond_ipd  = mean(df$ipd_uncond, na.rm = TRUE),
+    diff     = mean(df$pd_uncond, na.rm = TRUE) - mean(df$ipd_uncond, na.rm = TRUE),
+    t_value  = test_inverse$statistic,
+    df       = test_inverse$parameter,
+    p_value  = test_inverse$p.value
+  )
+  
+  tab_test_inverse
+  
+  
   
   primary_data <- primary_data %>%
     left_join(
@@ -1106,7 +1125,7 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
   tab_test_tokens_cond
  
   
-#Graphique avec les moyennes de jetons investis par groupe
+#GRAPHIQUE avec les moyennes de jetons investis par groupe ----
   df <- df %>%
     mutate(
       mean_tokens_pd = rowMeans(
@@ -1221,14 +1240,19 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
     pivot_longer(
       cols = c(
         starts_with("mean_tokens_pd_in"),
-        starts_with("mean_tokens_pd_out"),
+        starts_with("mean_tokens_pd_out")
       ),
       names_to = "variable",
       values_to = "value"
     ) %>%
     group_by(Player_type_PD, variable) %>%
     summarise(
+      n = sum(!is.na(value)),
       mean_jetons_joueurs_groupe = mean(value, na.rm = TRUE),
+      sd = sd(value, na.rm = TRUE),
+      se = sd / sqrt(n),
+      ic_inf = mean_jetons_joueurs_groupe - qt(0.975, df = n - 1) * se,
+      ic_sup = mean_jetons_joueurs_groupe + qt(0.975, df = n - 1) * se,
       .groups = "drop"
     )
   
@@ -1242,18 +1266,23 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
     pivot_longer(
       cols = c(
         starts_with("mean_tokens_ipd_in"),
-        starts_with("mean_tokens_ipd_out"),
+        starts_with("mean_tokens_ipd_out")
       ),
       names_to = "variable",
       values_to = "value"
     ) %>%
     group_by(Player_type_IPD, variable) %>%
     summarise(
+      n = sum(!is.na(value)),
       mean_jetons_joueurs_groupe = mean(value, na.rm = TRUE),
+      sd = sd(value, na.rm = TRUE),
+      se = sd / sqrt(n),
+      ic_inf = mean_jetons_joueurs_groupe -
+        qt(0.975, df = n - 1) * se,
+      ic_sup = mean_jetons_joueurs_groupe +
+        qt(0.975, df = n - 1) * se,
       .groups = "drop"
-    )
-  
-  primary_data_means_ipd <- primary_data_means_ipd %>%
+    ) %>%
     mutate(
       nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
     )
@@ -1261,15 +1290,21 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
   
   #Tracer les graphiques ----
   ##Graphique jeu PD ----
-  df_plot_pd_in <- primary_data_means_pd %>%
-    filter(str_detect(variable, "^mean_tokens_pd_in"))
-  unique(df_plot_pd_in$Player_type_PD)
-  tokens_pd_in_groups <- ggplot(
-    df_plot_pd_in,
-    aes(x = nbr_jetons_autres_joueurs,y = mean_jetons_joueurs_groupe,color = Player_type_PD,group = Player_type_PD)) +
-    scale_y_continuous(limits = c(0, 4),breaks = 0:4) +
-    geom_line(linewidth = 1) +
-    geom_point(size = 3) +
+  pd <- position_dodge(width = 0.2)
+  
+  tokens_pd_in_groups <- ggplot(df_plot_pd_in,
+         aes(x = nbr_jetons_autres_joueurs,
+             y = mean_jetons_joueurs_groupe,
+             color = Player_type_PD,
+             group = Player_type_PD)) +
+    geom_errorbar(
+      aes(ymin = ic_inf, ymax = ic_sup),
+      position = pd,
+      width = 0.15,
+      linewidth = 1.1
+    ) +
+    geom_line(position = pd, linewidth = 1) +
+    geom_point(position = pd, size = 3)+
     theme_minimal() +
     scale_color_discrete(
       labels = c(
@@ -1292,17 +1327,28 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
    filename = "results/figures/mean_tokens_pd_in_groups.png",
    plot = tokens_pd_in_groups, width = 10, height = 6,dpi = 300)
  
+ 
+ 
  df_plot_pd_out <- primary_data_means_pd %>%
    filter(str_detect(variable, "^mean_tokens_pd_out"))
+ 
+ pd <- position_dodge(width = 0.3)
  tokens_pd_out_groups <- ggplot(df_plot_pd_out,
-        aes(x = nbr_jetons_autres_joueurs,
-            y = mean_jetons_joueurs_groupe,
-            color = Player_type_PD)) +
-   geom_line(linewidth = 1) +
-   geom_point(alpha = 2,size = 3) +
+                               aes(x = nbr_jetons_autres_joueurs,
+                                   y = mean_jetons_joueurs_groupe,
+                                   color = Player_type_PD,
+                                   group = Player_type_PD)) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     position = pd,
+     width = 0.15,
+     linewidth = 1.1
+   ) +
+   geom_line(position = pd, linewidth = 1) +
+   geom_point(position = pd, size = 3)+
    theme_minimal() +
-   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
-   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_x_continuous(breaks = 0:4)+
+ coord_cartesian(ylim = c(0,4))+
    scale_color_discrete(
      labels = c(
        "Ingroup and Outgroup\nconditional cooperator"  = "ioCC (14%)",
@@ -1328,12 +1374,21 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
  ##Graphique jeu IPD ----
  df_plot_ipd_in <- primary_data_means_ipd %>%
    filter(str_detect(variable, "^mean_tokens_ipd_in"))
+ 
+ ipd_position <- position_dodge(width = 0.3)
  tokens_ipd_in_groups <- ggplot(df_plot_ipd_in,
-        aes(x = nbr_jetons_autres_joueurs,
-            y = mean_jetons_joueurs_groupe,
-            color = Player_type_IPD)) +
-   geom_point(alpha = 2,size = 3) +
+                                aes(x = nbr_jetons_autres_joueurs,
+                                    y = mean_jetons_joueurs_groupe,
+                                    color = Player_type_IPD,
+                                    group = Player_type_IPD)) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     position = ipd_position,
+     width = 0.15,
+     linewidth = 1.1
+   ) +
    geom_line(linewidth = 1) +
+   geom_point(position = pd, size = 3)+
    theme_minimal() +
    scale_color_discrete(
      labels = c(
@@ -1351,19 +1406,26 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
      color = "Type de joueur (IPD)",
      title = "Nombre moyen de jetons investis par groupe en fonction des jetons ingroup dans le jeu IPD"
    )
+ print(tokens_ipd_in_groups)
  ggsave(
    filename = "results/figures/mean_tokens_ipd_in_groups.png",
    plot =  tokens_ipd_in_groups, width = 10, height = 6,dpi = 300)
  
  
- df_plot_ipd_out <- primary_data_means_ipd %>%
-   filter(str_detect(variable, "^mean_tokens_ipd_out"))
+ ipd_position <- position_dodge(width = 0.3)
  tokens_ipd_out_groups <- ggplot(df_plot_ipd_out,
-        aes(x = nbr_jetons_autres_joueurs,
-            y = mean_jetons_joueurs_groupe,
-            color = Player_type_IPD)) +
+                                aes(x = nbr_jetons_autres_joueurs,
+                                    y = mean_jetons_joueurs_groupe,
+                                    color = Player_type_IPD,
+                                    group = Player_type_IPD)) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     position = ipd_position,
+     width = 0.15,
+     linewidth = 1.1
+   ) +
    geom_line(linewidth = 1) +
-   geom_point(alpha = 2,size = 3) +
+   geom_point(position = pd, size = 3)+
    theme_minimal() +
    scale_color_discrete(
      labels = c(
@@ -1375,14 +1437,15 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
        "Undefined" = "n.c (43%)"
      )
    )+
-   scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
-   scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
+   scale_x_continuous(breaks = 0:4)+
+   coord_cartesian(ylim = c(0,4)) +
    labs(
      x = "Nombre de jetons des autres joueurs outgroup",
      y = "Moyenne des jetons du groupe",
      color = "Type de joueur (IPD)",
      title = "Nombre moyen de jetons investis par groupe en fonction des jetons outgroup dans le jeu IPD"
    )
+ print(tokens_ipd_out_groups)
  ggsave(
    filename = "results/figures/mean_tokens_ipd_out_groups.png",
    plot =  tokens_ipd_out_groups, width = 10, height = 6,dpi = 300)
@@ -1399,51 +1462,68 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
    pivot_longer(
      cols = c(
        starts_with("mean_tokens_pd_in"),
-       starts_with("mean_tokens_pd_out"),
+       starts_with("mean_tokens_pd_out")
      ),
      names_to = "variable",
      values_to = "value"
    ) %>%
    group_by(variable) %>%
    summarise(
+     n = sum(!is.na(value)),
      mean_jetons_all_players = mean(value, na.rm = TRUE),
+     sd = sd(value, na.rm = TRUE),
+     se = sd / sqrt(n),
+     ic_inf = mean_jetons_all_players -
+       qt(0.975, df = n - 1) * se,
+     ic_sup = mean_jetons_all_players +
+       qt(0.975, df = n - 1) * se,
      .groups = "drop"
-   )
- 
- primary_data_means_pd_all <- primary_data_means_pd_all %>%
+   ) %>%
    mutate(
      nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
    )
- 
  
  primary_data_means_ipd_all <- primary_data %>%
    pivot_longer(
      cols = c(
        starts_with("mean_tokens_ipd_in"),
-       starts_with("mean_tokens_ipd_out"),
+       starts_with("mean_tokens_ipd_out")
      ),
      names_to = "variable",
      values_to = "value"
    ) %>%
    group_by(variable) %>%
    summarise(
+     n = sum(!is.na(value)),
      mean_jetons_all_players = mean(value, na.rm = TRUE),
+     sd = sd(value, na.rm = TRUE),
+     se = sd / sqrt(n),
+     ic_inf = mean_jetons_all_players -
+       qt(0.975, df = n - 1) * se,
+     ic_sup = mean_jetons_all_players +
+       qt(0.975, df = n - 1) * se,
      .groups = "drop"
-   )
- 
- primary_data_means_ipd_all <- primary_data_means_ipd_all %>%
+   ) %>%
    mutate(
      nbr_jetons_autres_joueurs = as.numeric(stringr::str_sub(variable, -1))
    )
  
+ 
+ 
  ##Graphique PD all players ----
  df_plot_pd_in_all <- primary_data_means_pd_all %>%
    filter(str_detect(variable, "^mean_tokens_pd_in"))
- tokens_pd_in_all <-  ggplot(df_plot_pd_in_all,
+ 
+ tokens_pd_in_all <- ggplot(df_plot_pd_in_all,
                                 aes(x = nbr_jetons_autres_joueurs,
-                                    y = mean_jetons_all_players,
-                                    )) +
-   geom_point(alpha = 2,size = 3) +
+                                    y = mean_jetons_all_players)) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     width = 0.15,
+     linewidth = 1
+   )+
+   geom_line(linewidth = 1) +
+   geom_point(position = pd, size = 3)+
    geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
    scale_y_continuous(limits = c(0, 4), breaks = 0:4) +
@@ -1453,6 +1533,7 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
      y = "Moyenne des jetons de l'ensemble des joueurs",
      title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons ingroup dans le jeu PD"
    )
+   print( tokens_pd_in_all)
  ggsave(
    filename = "results/figures/mean_tokens_pd_in_all_players.png",
    plot = tokens_pd_in_all, width = 10, height = 6,dpi = 300)
@@ -1465,6 +1546,11 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
                              aes(x = nbr_jetons_autres_joueurs,
                                  y = mean_jetons_all_players,
                              )) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     width = 0.15,
+     linewidth = 1
+   )+
    geom_point(alpha = 2,size = 3) +
    geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
@@ -1475,6 +1561,7 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
      y = "Moyenne des jetons de l'ensemble des joueurs",
      title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons outgroup dans le jeu PD"
    )
+ print(tokens_pd_out_all)
  ggsave(
    filename = "results/figures/mean_tokens_pd_out_all_players.png",
    plot = tokens_pd_out_all, width = 10, height = 6,dpi = 300)
@@ -1486,6 +1573,11 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
                              aes(x = nbr_jetons_autres_joueurs,
                                  y = mean_jetons_all_players,
                              )) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     width = 0.15,
+     linewidth = 1
+   )+
    geom_point(alpha = 2,size = 3) +
    geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
@@ -1496,6 +1588,7 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
      y = "Moyenne des jetons de l'ensemble des joueurs",
      title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons ingroup dans le jeu IPD"
    )
+ print(tokens_ipd_in_all)
  ggsave(
    filename = "results/figures/mean_tokens_ipd_in_all_players.png",
    plot = tokens_ipd_in_all, width = 10, height = 6,dpi = 300)
@@ -1508,6 +1601,11 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
                               aes(x = nbr_jetons_autres_joueurs,
                                   y = mean_jetons_all_players,
                               )) +
+   geom_errorbar(
+     aes(ymin = ic_inf, ymax = ic_sup),
+     width = 0.15,
+     linewidth = 1
+   )+
    geom_point(alpha = 2,size = 3) +
    geom_line(linewidth = 1) +
    scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
@@ -1518,6 +1616,7 @@ tab <- broom::tidy(model_OiCC_vs_OoCC) %>%
      y = "Moyenne des jetons de l'ensemble des joueurs",
      title = "Nombre moyen de jetons investis par l'ensemble des joueurs en fonction des jetons outgroup dans le jeu IPD"
    )
+ print(tokens_ipd_out_all)
  ggsave(
    filename = "results/figures/mean_tokens_ipd_out_all_players.png",
    plot = tokens_ipd_out_all, width = 10, height = 6,dpi = 300)
@@ -1579,6 +1678,7 @@ tokens_pd_all_3D <- plot_ly(
   z = t(z_matrix_pd_all),
   type = "surface",
   colorscale = "Blues",
+  reversescale = TRUE,
   cmin = 0,
   cmax = 4,
   colorbar = list(
@@ -1630,8 +1730,8 @@ heatmap_3D_pd_all <- ggplot(
   geom_text(aes(label = round(value, 2))) +
   
   scale_fill_gradient(
-    low = "navy",
-    high = "lightblue",
+    low = "lightblue",
+    high = "navy",
     breaks = c(0, 1, 2, 3, 4)
   )+
   theme_minimal() +
@@ -1702,6 +1802,7 @@ tokens_ipd_all_3D <- plot_ly(
   z = t(z_matrix_ipd_all),
   type = "surface",
   colorscale = "Blues",
+  reversescale = TRUE,
   cmin = 0,
   cmax = 4,
   colorbar = list(
@@ -1754,8 +1855,8 @@ heatmap_3D_ipd_all <- ggplot(
   geom_text(aes(label = round(value, 2))) +
   
   scale_fill_gradient(
-    low = "navy",
-    high = "lightblue",
+    low = "lightblue",
+    high = "navy",
     breaks = c(0, 1, 1.75)
   )+
   
@@ -1835,6 +1936,7 @@ plot_surface_pd <- function(data, group_value, title = "") {
     z = t(z_matrix),
     type = "surface",
     colorscale = "Blues",
+    reversescale = TRUE,
     cmin = 0,
     cmax = 4,
     colorbar = list(
@@ -1859,12 +1961,12 @@ plots <- lapply(types, function(t) {
 })
 
 #Afficher les graphiques tracés ----
-plots[[1]]
-plots[[2]]
-plots[[3]]
-plots[[4]]
-plots[[5]]
-plots[[6]]
+plots[[1]] #PC - Unconditional Cooperator
+plots[[2]] #PC - Undefined
+plots[[3]] #PD - ICC
+plots[[4]] #PD - UNC
+plots[[5]] #PD - IOCC
+plots[[6]] #PD - OCC
 
 library(htmlwidgets)
 names_plots <- c(
@@ -1918,6 +2020,7 @@ plot_surface_ipd <- function(data, group_value, title = "") {
     z = t(z_matrix_ipd),
     type = "surface",
     colorscale = "Blues",
+    reversescale = TRUE,
     cmin = 0,
     cmax = 4,
     colorbar = list(
